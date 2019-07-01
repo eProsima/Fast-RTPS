@@ -185,7 +185,7 @@ void HelloWorldPublisher::run(
     std::thread thread(&HelloWorldPublisher::runThread, this, samples, sleep_ms);
     if (samples == 0)
     {
-        std::cout << "Publisher running. Please press enter to stop_ the Publisher at any time." << std::endl;
+        std::cout << "Publisher running. Please press enter to stop the Publisher at any time." << std::endl;
         std::cin.ignore();
         stop_ = true;
     }

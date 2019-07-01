@@ -184,6 +184,7 @@ void TCPTransportInterface::clean()
 
     channel_resources_.clear();
     unbound_channel_resources_.clear();
+    send_resource_list_.clear();
 }
 
 void TCPTransportInterface::bind_socket(
@@ -195,6 +196,22 @@ void TCPTransportInterface::bind_socket(
     auto it_remove = std::find(unbound_channel_resources_.begin(), unbound_channel_resources_.end(), channel);
     assert(it_remove != unbound_channel_resources_.end());
     unbound_channel_resources_.erase(it_remove);
+
+    // Swap channel in sender resource
+    auto it_old = channel_resources_.find(channel->locator());
+    if (it_old != channel_resources_.end())
+    {
+        for(SenderResource* sender_resource : send_resource_list_)
+        {
+            TCPSenderResource* tcp_sender_resource = TCPSenderResource::cast(*this, sender_resource);
+
+            if(tcp_sender_resource && channel->locator() == tcp_sender_resource->channel()->locator())
+            {
+                tcp_sender_resource->channel(channel);
+            }
+        }
+    }
+
     channel_resources_[channel->locator()] = channel;
 }
 
@@ -502,7 +519,11 @@ void TCPTransportInterface::close_tcp_socket(
         std::shared_ptr<TCPChannelResource>& channel)
 {
     channel->disable();
-    channel.reset();
+    channel->set_all_ports_pending();
+    //if (TCPChannelResource::TCPConnectionType::TCP_CONNECT_TYPE != channel->tcp_connection_type())
+    //{
+    //    channel.reset();
+    //}
 }
 
 
@@ -595,8 +616,9 @@ bool TCPTransportInterface::OpenOutputChannel(
 
         success = true;
         channel->add_logical_port(logical_port, rtcp_message_manager_.get());
-        send_resource_list.emplace_back(
-                static_cast<SenderResource*>(new TCPSenderResource(*this, channel)));
+        SenderResource* sender_resource = static_cast<SenderResource*>(new TCPSenderResource(*this, channel));
+        send_resource_list.emplace_back(sender_resource);
+        send_resource_list_.emplace_back(sender_resource);
     }
 
     return success;
@@ -639,9 +661,31 @@ void TCPTransportInterface::keep_alive()
 
     for (auto& channel_resource : tmp_vec)
     {
-        if(TCPChannelResource::TCPConnectionType::TCP_CONNECT_TYPE == channel_resource.second->tcp_connection_type())
+        if (channel_resource.second && channel_resource.second->connection_established())
         {
-            rtcp_message_manager_->sendKeepAliveRequest(channel_resource.second);
+            if (!channel_resource.second->check_keep_alive_expired())
+            {
+                std::chrono::time_point<std::chrono::system_clock> time_now = std::chrono::system_clock::now();
+                std::chrono::time_point<std::chrono::system_clock> timeout_time =
+                    time_now + std::chrono::milliseconds(configuration()->keep_alive_timeout_ms);
+
+                rtcp_message_manager_->sendKeepAliveRequest(channel_resource.second, timeout_time);
+            }
+            else
+            {
+                // Disable the socket to erase it after the reception.
+                logWarning(RTCP, "Closing channel " << IPLocator::to_string(channel_resource.second->locator())
+                    << " due to keep alive timeout.");
+
+                {
+                    std::unique_lock<std::mutex> scopedLock(sockets_map_mutex_);
+                    auto it = channel_resources_.find(channel_resource.first);
+                    assert(it != channel_resources_.end());
+                    it->second->update_keep_alive_timeout(
+                        std::chrono::time_point<std::chrono::system_clock>(std::chrono::milliseconds(0)));
+                    close_tcp_socket(it->second);
+                }
+            }
         }
     }
     //TODO Check timeout.

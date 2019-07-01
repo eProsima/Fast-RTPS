@@ -98,6 +98,8 @@ protected:
 
     std::map<Locator_t, std::shared_ptr<TCPAcceptor>> acceptors_;
 
+    std::vector<SenderResource*> send_resource_list_;
+
     TCPTransportInterface(int32_t transport_kind);
 
     virtual bool compare_locator_ip(

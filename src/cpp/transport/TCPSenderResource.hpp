@@ -58,6 +58,8 @@ class TCPSenderResource : public SenderResource
 
         std::shared_ptr<TCPChannelResource>& channel() { return channel_; }
 
+        void channel(std::shared_ptr<TCPChannelResource>& channel) { channel_ = channel; }
+
         static TCPSenderResource* cast(TransportInterface& transport, SenderResource* sender_resource)
         {
             TCPSenderResource* returned_resource = nullptr;

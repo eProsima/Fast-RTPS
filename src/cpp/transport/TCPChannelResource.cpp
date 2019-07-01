@@ -45,7 +45,7 @@ TCPChannelResource::TCPChannelResource(
     : ChannelResource(maxMsgSize)
     , parent_ (parent)
     , locator_(locator)
-    , waiting_for_keep_alive_(false)
+    , waiting_for_keep_alive_(std::chrono::milliseconds(0))
     , connection_status_(eConnectionStatus::eDisconnected)
     , tcp_connection_type_(TCPConnectionType::TCP_CONNECT_TYPE)
 {
@@ -57,7 +57,7 @@ TCPChannelResource::TCPChannelResource(
     : ChannelResource(maxMsgSize)
     , parent_(parent)
     , locator_()
-    , waiting_for_keep_alive_(false)
+    , waiting_for_keep_alive_(std::chrono::milliseconds(0))
     , connection_status_(eConnectionStatus::eConnected)
     , tcp_connection_type_(TCPConnectionType::TCP_ACCEPT_TYPE)
 {
@@ -279,6 +279,26 @@ bool TCPChannelResource::remove_logical_port(uint16_t port)
     it = std::remove(pending_logical_output_ports_.begin(), pending_logical_output_ports_.end(), port);
     pending_logical_output_ports_.erase(it, pending_logical_output_ports_.end());
     return true;
+}
+
+bool TCPChannelResource::check_keep_alive_expired() const
+{
+    if (waiting_for_keep_alive_ > std::chrono::time_point<std::chrono::system_clock>(std::chrono::milliseconds(0)))
+    {
+        std::chrono::time_point<std::chrono::system_clock> time_now = std::chrono::system_clock::now();
+        return waiting_for_keep_alive_ <= time_now;
+    }
+    return false;
+}
+
+void TCPChannelResource::update_keep_alive_timeout(
+        const std::chrono::time_point<std::chrono::system_clock>& timeout)
+{
+    if (waiting_for_keep_alive_ == std::chrono::time_point<std::chrono::system_clock>(std::chrono::milliseconds(0))
+            || timeout == std::chrono::time_point<std::chrono::system_clock>(std::chrono::milliseconds(0)))
+    {
+        waiting_for_keep_alive_ = timeout;
+    }
 }
 
 } // namespace rtps

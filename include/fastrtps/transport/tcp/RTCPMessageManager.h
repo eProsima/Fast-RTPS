@@ -45,13 +45,19 @@ class RTCPMessageManager
     std::atomic<bool> alive_;
 public:
 
-    RTCPMessageManager(TCPTransportInterface* pTransport) : alive_(true), mTransport(pTransport) {}
+    RTCPMessageManager(
+            TCPTransportInterface* pTransport)
+        : alive_(true)
+        , mTransport(pTransport)
+    {}
+
     virtual ~RTCPMessageManager();
 
     /** @name Send RTCP Message Methods.
     * These methods create RTPS messages for different types
     */
-    TCPTransactionId sendConnectionRequest(std::shared_ptr<TCPChannelResource>& channel);
+    TCPTransactionId sendConnectionRequest(
+            std::shared_ptr<TCPChannelResource>& channel);
 
     TCPTransactionId sendOpenLogicalPortRequest(
             TCPChannelResource* channel,
@@ -71,9 +77,12 @@ public:
 
     TCPTransactionId sendKeepAliveRequest(
             std::shared_ptr<TCPChannelResource>& channel,
-            KeepAliveRequest_t &request);
+            KeepAliveRequest_t &request,
+            const std::chrono::time_point<std::chrono::system_clock>& new_timeout);
 
-    TCPTransactionId sendKeepAliveRequest(std::shared_ptr<TCPChannelResource>& channel);
+    TCPTransactionId sendKeepAliveRequest(
+            std::shared_ptr<TCPChannelResource>& channel,
+            const std::chrono::time_point<std::chrono::system_clock>& new_timeout);
 
     TCPTransactionId sendLogicalPortIsClosedRequest(
             std::shared_ptr<TCPChannelResource>& channel,
@@ -83,7 +92,8 @@ public:
             std::shared_ptr<TCPChannelResource>& channel,
             uint16_t port);
 
-    TCPTransactionId sendUnbindConnectionRequest(std::shared_ptr<TCPChannelResource>& channel);
+    TCPTransactionId sendUnbindConnectionRequest(
+            std::shared_ptr<TCPChannelResource>& channel);
 
     /** @name Process RTCP Message Methods.
     * These methods create RTPS messages for different types
@@ -139,7 +149,9 @@ public:
             octet* receive_buffer,
             size_t receivedSize);
 
-    static uint32_t& addToCRC(uint32_t &crc, octet data);
+    static uint32_t& addToCRC(
+            uint32_t &crc,
+            octet data);
 
     void dispose()
     {
@@ -158,20 +170,23 @@ protected:
         return myTransId++;
     }
 
-    bool findTransactionId(const TCPTransactionId& transactionId)
+    bool findTransactionId(
+            const TCPTransactionId& transactionId)
     {
         std::unique_lock<std::recursive_mutex> scopedLock(mutex);
         auto it = mUnconfirmedTransactions.find(transactionId);
         return it != mUnconfirmedTransactions.end();
     }
 
-    void addTransactionId(const TCPTransactionId& transactionId)
+    void addTransactionId(
+            const TCPTransactionId& transactionId)
     {
         std::unique_lock<std::recursive_mutex> scopedLock(mutex);
         mUnconfirmedTransactions.emplace(transactionId);
     }
 
-    bool removeTransactionId(const TCPTransactionId& transactionId)
+    bool removeTransactionId(
+            const TCPTransactionId& transactionId)
     {
         std::unique_lock<std::recursive_mutex> scopedLock(mutex);
         auto it = mUnconfirmedTransactions.find(transactionId);
@@ -185,8 +200,6 @@ protected:
             return false;
         }
     }
-
-    //void prepareAndSendCheckLogicalPortsRequest(TCPChannelResource *p_channel_resource);
 
     size_t sendMessage(
             TCPChannelResource* channel,
@@ -206,10 +219,16 @@ protected:
             const SerializedPayload_t *payload = nullptr,
             const ResponseCode respCode = RETCODE_VOID);
 
-    void fillHeaders(TCPCPMKind kind, const TCPTransactionId &transactionId, TCPControlMsgHeader &retCtrlHeader,
-        TCPHeader &header, const SerializedPayload_t *payload = nullptr, const ResponseCode *respCode = nullptr);
+    void fillHeaders(
+            TCPCPMKind kind,
+            const TCPTransactionId &transactionId,
+            TCPControlMsgHeader &retCtrlHeader,
+            TCPHeader &header,
+            const SerializedPayload_t *payload = nullptr,
+            const ResponseCode *respCode = nullptr);
 
-    bool isCompatibleProtocol(const ProtocolVersion_t &protocol) const;
+    bool isCompatibleProtocol(
+            const ProtocolVersion_t &protocol) const;
 
     inline bool alive() const
     {

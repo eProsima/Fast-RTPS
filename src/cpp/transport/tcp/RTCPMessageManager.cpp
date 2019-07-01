@@ -367,22 +367,25 @@ TCPTransactionId RTCPMessageManager::sendCheckLogicalPortsRequest(
 
 TCPTransactionId RTCPMessageManager::sendKeepAliveRequest(
         std::shared_ptr<TCPChannelResource>& channel,
-        KeepAliveRequest_t &request)
+        KeepAliveRequest_t &request,
+        const std::chrono::time_point<std::chrono::system_clock>& new_timeout)
 {
     SerializedPayload_t payload(static_cast<uint32_t>(KeepAliveRequest_t::getBufferCdrSerializedSize(request)));
     request.serialize(&payload);
     logInfo(RTCP_MSG, "Send [KEEP_ALIVE_REQUEST]");
     TCPTransactionId id = getTransactionId();
+    channel->update_keep_alive_timeout(new_timeout);
     sendData(channel, KEEP_ALIVE_REQUEST, id, &payload, RETCODE_VOID);
     return id;
 }
 
 TCPTransactionId RTCPMessageManager::sendKeepAliveRequest(
-        std::shared_ptr<TCPChannelResource>& channel)
+        std::shared_ptr<TCPChannelResource>& channel,
+        const std::chrono::time_point<std::chrono::system_clock>& new_timeout)
 {
     KeepAliveRequest_t request;
     request.locator(channel->locator());
-    return sendKeepAliveRequest(channel, request);
+    return sendKeepAliveRequest(channel, request, new_timeout);
 }
 
 TCPTransactionId RTCPMessageManager::sendLogicalPortIsClosedRequest(
@@ -647,7 +650,9 @@ ResponseCode RTCPMessageManager::processKeepAliveResponse(
         switch (respCode)
         {
         case RETCODE_OK:
-            channel->waiting_for_keep_alive_ = false;
+            channel->update_keep_alive_timeout(
+                std::chrono::time_point<std::chrono::system_clock>(std::chrono::milliseconds(0)));
+            //logError(DEBUG, "Received keep alive " << IPLocator::to_string(channel->locator()));
             break;
         case RETCODE_UNKNOWN_LOCATOR:
             return RETCODE_UNKNOWN_LOCATOR;

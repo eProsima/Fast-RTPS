@@ -57,6 +57,8 @@ void TCPChannelResourceBasic::connect(
     assert(TCPConnectionType::TCP_CONNECT_TYPE == tcp_connection_type_);
     eConnectionStatus expected = eConnectionStatus::eDisconnected;
 
+    assert (myself.get() == this);
+
     if (connection_status_.compare_exchange_strong(expected, eConnectionStatus::eConnecting))
     {
         try
