@@ -249,6 +249,10 @@ public:
         m_MemberFlag = std::move(x.m_MemberFlag);
         return *this;
     }
+				
+				std::bitset<16> getM_memFlag() {return m_MemberFlag; }
+    void setM_memFlag(uint16_t bits) {m_MemberFlag = std::bitset<16>(bits) ; }
+			
     // T1 | 00 = INVALID, 01 = DISCARD
     bool TRY_CONSTRUCT1() const
     {
@@ -364,7 +368,10 @@ public:
         m_TypeFlag = std::move(x.m_TypeFlag);
         return *this;
     }
-
+				
+				std::bitset<16> getM_typeFlag() {return m_TypeFlag; }
+    void setM_typeFlag(uint16_t bits) {m_TypeFlag = std::bitset<16>(bits) ; }
+			
     // F |
     bool IS_FINAL() const
     {

@@ -82,13 +82,6 @@ protected:
 
     uint32_t get_annotation_count();
 
-    DynamicType_ptr get_base_type() const;
-
-    DynamicType_ptr get_discriminator_type() const;
-
-    DynamicType_ptr get_element_type() const;
-
-    DynamicType_ptr get_key_element_type() const;
 
     ResponseCode get_member(
             DynamicTypeMember& member,
@@ -106,6 +99,15 @@ protected:
     bool is_key_defined_;
 
 public:
+//  NEW PUBLIC METHODS TO ENABLE STAND-ALONE SERIALIZER
+    DynamicType_ptr get_discriminator_type() const;
+    DynamicType_ptr get_element_type() const;
+    DynamicType_ptr get_base_type() const;
+    std::map<MemberId, DynamicTypeMember*> get_member_by_id() const {return member_by_id_;}
+    DynamicType_ptr get_key_element_type() const;
+				bool is_key_defined()const noexcept{return is_key_defined_ ;}
+//  END PUBLIC METHODS TO ENABLE STAND-ALONE SERIALIZER
+
     bool equals(const DynamicType* other) const;
 
     ResponseCode get_all_members(std::map<MemberId, DynamicTypeMember*>& members);

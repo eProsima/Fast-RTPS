@@ -76,9 +76,7 @@ protected:
 
     void set_type_name(const std::string& name);
 
-    ResponseCode set_union_id(MemberId id);
 
-    void update_union_discriminator();
 
     void sort_member_ids(MemberId startId);
 
@@ -86,8 +84,6 @@ protected:
 
     // Serializes and deserializes the Dynamic Data.
     bool deserialize(eprosima::fastcdr::Cdr& cdr);
-
-    bool deserialize_discriminator(eprosima::fastcdr::Cdr& cdr);
 
     static size_t getCdrSerializedSize(
             const DynamicData* data,
@@ -106,7 +102,6 @@ protected:
             size_t current_alignment = 0);
 
     void serialize(eprosima::fastcdr::Cdr& cdr) const;
-
     void serialize_discriminator(eprosima::fastcdr::Cdr& cdr) const;
 
     void serializeKey(eprosima::fastcdr::Cdr& cdr) const;
@@ -147,7 +142,59 @@ protected:
     friend class DynamicDataHelper;
 
 public:
+//  NEW PUBLIC METHODS TO ENABLE STAND-ALONE SERIALIZER
 
+    DynamicType_ptr type() const noexcept{return type_ ;}
+    DynamicData* get_union_discriminator() const noexcept{ return union_discriminator_ ;}
+    MemberId get_union_id()const noexcept{return union_id_;}
+    std::map<MemberId, MemberDescriptor*> get_descriptors()const noexcept{ return descriptors_; }
+    bool deserialize_discriminator(eprosima::fastcdr::Cdr& cdr);
+    void update_union_discriminator() ;
+    ResponseCode set_union_id(MemberId id);
+    DynamicData* get_default_array_value() const noexcept {return default_array_value_ ;}
+    bool get_key_element() const noexcept {return key_element_ ; }
+    void set_key_element(bool a) noexcept {key_element_ = a ; }
+
+#ifdef DYNAMIC_TYPES_CHECKING
+    int32_t get_int32_t()const noexcept { return int32_value_;}
+    uint32_t get_uint32_t()const noexcept { return uint32_value_;}
+    int16_t get_int16_t()const noexcept { return int16_value_;}
+    uint16_t get_uint16_t()const noexcept { return uint16_value_;}
+    int64_t get_int64_t()const noexcept { return int64_value_;}
+    uint64_t get_uint64_t()const noexcept { return uint64_value_;}
+    float get_float32_t()const noexcept { return float32_value_;}
+    double get_float64_t()const noexcept { return float64_value_;}
+    long double get_float128_t()const noexcept { return float128_value_;}
+    char get_char8_t()const noexcept { return char8_value_;}
+    wchar_t get_char16_t()const noexcept { return char16_value_;}
+    octet get_octet_t()const noexcept { return byte_value_;}
+    bool get_bool_t()const noexcept { return bool_value_;}
+    std::string get_string_t()const noexcept { return string_value_;}
+    std::wstring get_wstring_t()const noexcept { return wstring_value_;}
+    std::map<MemberId, DynamicData*> get_complex_t()const noexcept { return complex_values_;}
+
+    int32_t& assign_to_int32_t() noexcept { return int32_value_;}
+    uint32_t& assign_to_uint32_t() noexcept { return uint32_value_;}
+    int16_t& assign_to_int16_t() noexcept { return int16_value_;}
+    uint16_t& assign_to_uint16_t() noexcept { return uint16_value_;}
+    int64_t& assign_to_int64_t() noexcept { return int64_value_;}
+    uint64_t& assign_to_uint64_t() noexcept { return uint64_value_;}
+    float& assign_to_float32_t() noexcept { return float32_value_;}
+    double& assign_to_float64_t() noexcept { return float64_value_;}
+    long double& assign_to_float128_t() noexcept { return float128_value_;}
+    char& assign_to_char8_t() noexcept { return char8_value_;}
+    wchar_t& assign_to_char16_t() noexcept { return char16_value_;}
+    octet& assign_to_octet_t() noexcept { return byte_value_;}
+    bool& assign_to_bool_t() noexcept { return bool_value_;}
+    std::string& assign_to_string_t() noexcept { return string_value_;}
+    std::wstring& assign_to_wstring_t() noexcept { return wstring_value_;}
+//    std::map<MemberId, DynamicData*> assign_to_complex_t() noexcept { return complex_values_;}
+
+#else
+    std::map<MemberId, void*> values()const noexcept{return values_;}
+#endif
+
+//  END PUBLIC METHODS TO ENABLE STAND-ALONE SERIALIZER
     ResponseCode get_descriptor(
             MemberDescriptor& value,
             MemberId id);
@@ -164,7 +211,7 @@ public:
 
     RTPS_DllAPI bool equals(const DynamicData* other) const;
 
-    RTPS_DllAPI inline TypeKind get_kind() const;
+    RTPS_DllAPI TypeKind get_kind() const ;
 
     RTPS_DllAPI uint32_t get_item_count() const;
 

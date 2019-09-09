@@ -450,7 +450,7 @@ MemberId DynamicData::get_member_id_at_index(uint32_t index) const
 
 TypeKind DynamicData::get_kind() const
 {
-    return type_->get_kind();
+    return type_->get_kind() ;
 }
 
 uint32_t DynamicData::get_item_count() const

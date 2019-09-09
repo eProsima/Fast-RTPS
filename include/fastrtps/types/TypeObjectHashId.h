@@ -187,6 +187,10 @@ public:
      */
     void serializeKey(eprosima::fastcdr::Cdr &cdr) const;
 
+    uint8_t get_m_d()const noexcept{ return m__d ;}
+    void set_m_d(uint8_t m_d) noexcept{ m__d = m_d;}
+    octet* get_m_hash() noexcept{ return &m_hash[0]; }
+
 private:
     uint8_t m__d;
 
