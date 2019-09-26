@@ -378,7 +378,14 @@ bool VideoTestPublisher::test(uint32_t datasize)
     // Send READY command
     TestCommandType command;
     command.m_command = READY;
-    mp_commandpub->write(&command);
+    if (mp_commandpub->write(&command))
+    {
+        std::cout << "Start command sent" << std::endl;
+    }
+    else
+    {
+        std::cout << "Error: Start command NOT sent" << std::endl;
+    }
 
     std::unique_lock<std::mutex> lock(mutex_);
     // Wait for all the subscribers
@@ -406,10 +413,18 @@ bool VideoTestPublisher::test(uint32_t datasize)
 
     // Send STOP command to subscriber
     command.m_command = STOP;
-    mp_commandpub->write(&command);
+    if (mp_commandpub->write(&command))
+    {
+        std::cout << "Stop command sent" << std::endl;
+    }
+    else
+    {
+        std::cout << "Error: Stop command NOT sent" << std::endl;
+    }
 
     // Wait until all subscribers unmatch
-    disc_cond_.wait(lock, [&]() {
+    std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<int>> secs(std::chrono::duration<int>(5));
+    disc_cond_.wait_until(lock, secs, [&]() {
         return disc_count_ == 0;
     });
 

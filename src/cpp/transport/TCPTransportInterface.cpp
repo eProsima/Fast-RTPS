@@ -519,6 +519,7 @@ bool TCPTransportInterface::OpenOutputChannel(
         SendResourceList& send_resource_list,
         const Locator_t& locator)
 {
+    // Don't attempt to open if the locator is not TCP
     if (!IsLocatorSupported(locator))
     {
         return false;
@@ -985,13 +986,28 @@ bool TCPTransportInterface::send(
         }
     }
 
-    if (locator_mismatch || send_buffer_size > configuration()->sendBufferSize)
+    // If channel locator is not the same as the remote locator (and the channel locator is not WAN)
+    // then, the channel is not the correct one to send to the remote locator.
+    if (locator_mismatch)
     {
-        //std::cout << "ChannelLocator: " << IPLocator::to_string(channel->locator()) << std::endl;
-        //std::cout << "RemoteLocator: " << IPLocator::to_string(remote_locator) << std::endl;
-
-        logWarning(RTCP, "SEND [RTPS] Failed: Not connect: " << IPLocator::getLogicalPort(remote_locator) \
-            << " @ IP: " << IPLocator::toIPv4string(remote_locator));
+        logInfo(
+            RTCP,
+            "SEND [RTPS] Failed: Remote " \
+                << IPLocator::toIPv4string(remote_locator) \
+                << ":" << IPLocator::getLogicalPort(remote_locator) \
+                << " != Channel " << IPLocator::toIPv4string(channel->locator()) \
+                << ":" << IPLocator::getLogicalPort(channel->locator()));
+        return false;
+    }
+    // Whether the send buffer size is bigger than the configured one.
+    // Should never be seen because the message is expected to be fragmented before calling here.
+    else if (send_buffer_size > configuration()->sendBufferSize)
+    {
+        logWarning(
+            RTCP,
+            "SEND [RTPS] Failed: " \
+                << "send_buffer_size = " << send_buffer_size \
+                << " > configuration()->sendBufferSize = " << configuration()->sendBufferSize);
         return false;
     }
 

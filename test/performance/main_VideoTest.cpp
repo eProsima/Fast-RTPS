@@ -174,7 +174,7 @@ int main(int argc, char** argv)
 {
     int columns;
 
-    Log::SetVerbosity(Log::Warning);
+    Log::SetVerbosity(Log::Error);
 
 #if defined(_WIN32)
     char* buf = nullptr;
