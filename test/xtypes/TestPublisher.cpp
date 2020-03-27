@@ -79,15 +79,13 @@ bool TestPublisher::init(
     PParam.rtps.builtin.typelookup_config.use_server = using_typelookup_;
     PParam.rtps.setName(m_Name.c_str());
 
-    {
-        const std::lock_guard<std::mutex> lock(mutex_);
-        mp_participant = DomainParticipantFactory::get_instance()->create_participant(PParam, &part_listener_);
+    mp_participant = DomainParticipantFactory::get_instance()->create_participant(PParam, false, &part_listener_);
 
-        if (mp_participant == nullptr)
-        {
-            return false;
-        }
+    if (mp_participant == nullptr)
+    {
+        return false;
     }
+    mp_participant->enable();
 
     // CREATE THE PUBLISHER
     PublisherAttributes Wparam;
@@ -151,12 +149,6 @@ TestPublisher::~TestPublisher()
         m_Type->deleteData(m_Data);
     }
     DomainParticipantFactory::get_instance()->delete_participant(mp_participant);
-}
-
-eprosima::fastdds::dds::DomainParticipant* TestPublisher::participant()
-{
-    const std::lock_guard<std::mutex> lock(mutex_);
-    return mp_participant;
 }
 
 void TestPublisher::waitDiscovery(bool expectMatch, int maxWait)
@@ -256,7 +248,7 @@ void TestPublisher::PartListener::on_type_information_received(
     };
 
     std::cout << "Received type information: " << type_name << " on topic: " << topic_name << std::endl;
-    parent_->participant()->register_remote_type(type_information, type_name.to_string(), callback);
+    parent_->mp_participant->register_remote_type(type_information, type_name.to_string(), callback);
 }
 
 void TestPublisher::runThread()

@@ -77,6 +77,19 @@ public:
             RTPSParticipantListener* plisten = nullptr);
 
     /**
+     * @brief Create a RTPSParticipant.
+     * @snippet fastrtps_example.cpp ex_RTPSParticipantCreation
+     * @param attrs RTPSParticipant Attributes.
+     * @param enabled True if the participant should be enabled on creation.
+     * @param plisten Pointer to the ParticipantListener.
+     * @return Pointer to the RTPSParticipant.
+     */
+    RTPS_DllAPI static RTPSParticipant* createParticipant(
+            const RTPSParticipantAttributes& attrs,
+            bool enabled,
+            RTPSParticipantListener* plisten = nullptr);
+
+    /**
      * Create a RTPSWriter in a participant.
      * @param p Pointer to the RTPSParticipant.
      * @param watt Writer Attributes.

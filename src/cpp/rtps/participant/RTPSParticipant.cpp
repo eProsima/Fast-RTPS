@@ -138,6 +138,11 @@ void RTPSParticipant::set_listener(
     mp_impl->set_listener(listener);
 }
 
+void RTPSParticipant::enable()
+{
+    mp_impl->enable();
+}
+
 } /* namespace rtps */
 } /* namespace fastrtps */
 } /* namespace eprosima */

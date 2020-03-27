@@ -77,8 +77,6 @@ public:
 
     void delete_datareader(eprosima::fastdds::dds::DataReader* reader);
 
-    eprosima::fastdds::dds::DomainParticipant* participant();
-
 private:
     std::string m_Name;
     eprosima::fastdds::dds::TypeSupport m_Type;
@@ -89,7 +87,6 @@ private:
     bool m_bInitialized;
     std::mutex m_mDiscovery;
     std::mutex mtx_type_discovery_;
-    std::mutex mutex_;
     std::condition_variable m_cvDiscovery;
     std::condition_variable cv_type_discovery_;
     std::condition_variable cv_;

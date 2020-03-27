@@ -228,6 +228,11 @@ public:
     void set_listener(
             RTPSParticipantListener* listener);
 
+    /**
+     * @brief Create receiver resources and start builtin protocols
+     */
+    void enable();
+
 private:
 
     //!Pointer to the implementation.

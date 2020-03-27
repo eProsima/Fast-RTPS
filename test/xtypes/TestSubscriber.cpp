@@ -78,15 +78,13 @@ bool TestSubscriber::init(
     PParam.rtps.builtin.typelookup_config.use_server = using_typelookup_;
     PParam.rtps.setName(m_Name.c_str());
 
+    mp_participant = DomainParticipantFactory::get_instance()->create_participant(PParam, false, &part_listener_);
+    if(mp_participant==nullptr)
     {
-        const std::lock_guard<std::mutex> lock(mutex_);
-        mp_participant = DomainParticipantFactory::get_instance()->create_participant(PParam, &part_listener_);
-        if(mp_participant==nullptr)
-        {
-            std::cout << "ERROR" << std::endl;
-            return false;
-        }
+        std::cout << "ERROR" << std::endl;
+        return false;
     }
+    mp_participant->enable();
 
     //CREATE THE SUBSCRIBER
     SubscriberAttributes Rparam;
@@ -154,12 +152,6 @@ TestSubscriber::~TestSubscriber()
         m_Type->deleteData(m_Data);
     }
     DomainParticipantFactory::get_instance()->delete_participant(mp_participant);
-}
-
-eprosima::fastdds::dds::DomainParticipant* TestSubscriber::participant()
-{
-    const std::lock_guard<std::mutex> lock(mutex_);
-    return mp_participant;
 }
 
 TestSubscriber::SubListener::SubListener(TestSubscriber* parent)
@@ -282,7 +274,7 @@ void TestSubscriber::PartListener::on_type_information_received(
     };
 
     std::cout << "Received type information: " << type_name << " on topic: " << topic_name << std::endl;
-    parent_->participant()->register_remote_type(type_information, type_name.to_string(), callback);
+    parent_->mp_participant->register_remote_type(type_information, type_name.to_string(), callback);
 }
 
 DataReader* TestSubscriber::create_datareader()

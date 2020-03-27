@@ -50,14 +50,13 @@ bool TypeLookupSubscriber::init()
     PParam.rtps.builtin.domainId = 0;
     PParam.rtps.builtin.discovery_config.leaseDuration = c_TimeInfinite;
     PParam.rtps.setName("Participant_sub");
+
+    mp_participant = DomainParticipantFactory::get_instance()->create_participant(PParam, false, &m_listener);
+    if (mp_participant == nullptr)
     {
-        const std::lock_guard<std::mutex> lock(mutex_);
-        mp_participant = DomainParticipantFactory::get_instance()->create_participant(PParam, &m_listener);
-        if (mp_participant == nullptr)
-        {
-            return false;
-        }
+        return false;
     }
+    mp_participant->enable();
 
     // CREATE THE COMMON READER ATTRIBUTES
     qos_.m_durability.kind = eprosima::fastdds::dds::TRANSIENT_LOCAL_DURABILITY_QOS;
@@ -78,12 +77,6 @@ TypeLookupSubscriber::~TypeLookupSubscriber()
     DomainParticipantFactory::get_instance()->delete_participant(mp_participant);
     readers_.clear();
     datas_.clear();
-}
-
-eprosima::fastdds::dds::DomainParticipant* TypeLookupSubscriber::participant()
-{
-    const std::lock_guard<std::mutex> lock(mutex_);
-    return mp_participant;
 }
 
 void TypeLookupSubscriber::SubListener::on_subscription_matched(
@@ -213,7 +206,7 @@ void TypeLookupSubscriber::SubListener::on_type_information_received(
                 }
             };
 
-    subscriber_->participant()->register_remote_type(
+    subscriber_->mp_participant->register_remote_type(
         type_information,
         type_name.to_string(),
         callback);

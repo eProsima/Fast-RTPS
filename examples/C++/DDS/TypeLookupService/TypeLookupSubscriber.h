@@ -68,8 +68,6 @@ private:
 
     eprosima::fastrtps::TopicAttributes topic_;
 
-    std::mutex mutex_;
-
 public:
     class SubListener
         : public eprosima::fastdds::dds::DataReaderListener

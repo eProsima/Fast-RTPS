@@ -148,6 +148,11 @@ public:
     bool unregister_type(
             const char* typeName);
 
+    /**
+     * Enable participant and start listening to incoming messages.
+     */
+    void enable();
+
     // TODO create/delete topic
 
     /* TODO

@@ -76,8 +76,6 @@ public:
         return disc_type_;
     }
 
-    eprosima::fastdds::dds::DomainParticipant* participant();
-
 private:
     std::string m_Name;
 
@@ -100,8 +98,6 @@ private:
     std::mutex m_mDiscovery;
 
     std::mutex mtx_type_discovery_;
-
-    std::mutex mutex_;
 
     std::condition_variable m_cvDiscovery;
 

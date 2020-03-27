@@ -320,10 +320,11 @@ int main(
     participant_attributes.rtps.builtin.domainId = seed % 230;
     ParListener participant_listener;
     DomainParticipant* participant =
-        DomainParticipantFactory::get_instance()->create_participant(participant_attributes, &participant_listener);
+            DomainParticipantFactory::get_instance()->create_participant(participant_attributes, false, &participant_listener);
 
     if (participant == nullptr)
     {
+        std::cout << "Error creating subscriber participant" << std::endl;
         return 1;
     }
 
@@ -344,9 +345,13 @@ int main(
 
     if (g_subscriber == nullptr)
     {
+        std::cout << "Error creating subscriber" << std::endl;
         DomainParticipantFactory::get_instance()->delete_participant(participant);
         return 1;
     }
+
+    //Now that everything is created we can enable the protocols
+    participant->enable();
 
     while (notexit && g_run)
     {

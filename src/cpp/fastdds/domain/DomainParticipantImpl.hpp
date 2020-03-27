@@ -282,6 +282,9 @@ public:
             const std::string& type_name,
             std::function<void(const std::string& name, const fastrtps::types::DynamicType_ptr type)>& callback);
 
+    //! Create receiver resources and start builtin protocols
+    void enable();
+
     //! Remove all listeners in the hierarchy to allow a quiet destruction
     void disable();
 

@@ -71,7 +71,20 @@ public:
             const fastrtps::ParticipantAttributes& att,
             DomainParticipantListener* listen = nullptr);
 
+
     /**
+     * Create a Participant.
+     * @param att Participant Attributes.
+     * @param enabled True if the participant should be enabled on creation.
+     * @param listen ParticipantListener Pointer.
+     * @return Participant pointer. (nullptr if not created.)
+     */
+    RTPS_DllAPI DomainParticipant* create_participant(
+            const fastrtps::ParticipantAttributes& att,
+            bool enabled,
+            DomainParticipantListener* listen = nullptr);
+
+/**
      * This operation retrieves a previously created DomainParticipant belonging to specified domain_id.
      * If no such DomainParticipant exists, the operation will return 'nullptr'.
      * If multiple DomainParticipant entities belonging to that domain_id exist,

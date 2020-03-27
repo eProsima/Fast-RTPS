@@ -86,6 +86,11 @@ DomainParticipantImpl::DomainParticipantImpl(
     participant_->impl_ = this;
 }
 
+void DomainParticipantImpl::enable()
+{
+    rtps_participant_->enable();
+}
+
 void DomainParticipantImpl::disable()
 {
     participant_->set_listener(nullptr);

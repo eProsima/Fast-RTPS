@@ -184,13 +184,21 @@ DomainParticipant* DomainParticipantFactory::create_participant(
 }
 
 DomainParticipant* DomainParticipantFactory::create_participant(
+        const fastrtps::ParticipantAttributes& att,
+        DomainParticipantListener* listen)
+{
+    return create_participant(att, true, listen);
+}
+
+DomainParticipant* DomainParticipantFactory::create_participant(
         const ParticipantAttributes& att,
+        bool enabled,
         DomainParticipantListener* listen)
 {
     uint8_t domain_id = static_cast<uint8_t>(att.rtps.builtin.domainId);
     DomainParticipant* dom_part = new DomainParticipant();
     DomainParticipantImpl* dom_part_impl = new DomainParticipantImpl(att, dom_part, listen);
-    RTPSParticipant* part = RTPSDomain::createParticipant(att.rtps, &dom_part_impl->rtps_listener_);
+    RTPSParticipant* part = RTPSDomain::createParticipant(att.rtps, enabled, &dom_part_impl->rtps_listener_);
 
     if (part == nullptr)
     {
