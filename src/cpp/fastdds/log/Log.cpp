@@ -16,11 +16,11 @@ struct Log::Resources Log::resources_;
 
 Log::Resources::Resources()
     : logging(false)
-    ,work(false)
-    ,current_loop(0)
-    ,filenames(false)
-    ,functions(true)
-    ,verbosity(Log::Error)
+    , work(false)
+    , current_loop(0)
+    , filenames(false)
+    , functions(true)
+    , verbosity(static_cast<Log::Kind>(Log::User | Log::Error | Log::Critical | Log::Fatal))
 {
     resources_.consumers.emplace_back(new StdoutConsumer);
 }
@@ -41,25 +41,27 @@ void Log::ClearConsumers()
 {
     std::unique_lock<std::mutex> working(resources_.cv_mutex);
     resources_.cv.wait(working,
-        [&]()
-        {
-            return resources_.logs.BothEmpty();
-        });
+            [&]()
+            {
+                return resources_.logs.BothEmpty();
+            });
     std::unique_lock<std::mutex> guard(resources_.config_mutex);
     resources_.consumers.clear();
 }
 
 void Log::Reset()
 {
-    std::unique_lock<std::mutex> configGuard(resources_.config_mutex);
-    resources_.category_filter.reset();
-    resources_.filename_filter.reset();
-    resources_.error_string_filter.reset();
-    resources_.filenames = false;
-    resources_.functions = true;
-    resources_.verbosity = Log::Error;
-    resources_.consumers.clear();
-    resources_.consumers.emplace_back(new StdoutConsumer);
+    {
+        std::unique_lock<std::mutex> configGuard(resources_.config_mutex);
+        resources_.category_filter.reset();
+        resources_.filename_filter.reset();
+        resources_.error_string_filter.reset();
+        resources_.filenames = false;
+        resources_.functions = true;
+        resources_.consumers.clear();
+        resources_.consumers.emplace_back(new StdoutConsumer);
+    }
+    SetVerbosity(Log::User);
 }
 
 void Log::Flush()
@@ -85,16 +87,16 @@ void Log::Flush()
     for (int i = 0; i < 2; ++i)
     {
         resources_.cv.wait(guard,
-            [&]()
-            {
-                /* I must avoid:
-                 + the two calls be processed without an intermediate Run() loop (by using last_loop sequence number)
-                 + deadlock by absence of Run() loop activity (by using BothEmpty() call)
-                 */
-                return !resources_.logging ||
-                ( resources_.logs.Empty() &&
-                ( last_loop != resources_.current_loop || resources_.logs.BothEmpty()) );
-            });
+                [&]()
+                {
+                    /* I must avoid:
+                     + the two calls be processed without an intermediate Run() loop (by using last_loop sequence number)
+                     + deadlock by absence of Run() loop activity (by using BothEmpty() call)
+                     */
+                    return !resources_.logging ||
+                    ( resources_.logs.Empty() &&
+                    ( last_loop != resources_.current_loop || resources_.logs.BothEmpty()) );
+                });
 
         last_loop = resources_.current_loop;
 
@@ -108,10 +110,10 @@ void Log::run()
     while (resources_.logging)
     {
         resources_.cv.wait(guard,
-            [&]()
-            {
-                return !resources_.logging || resources_.work;
-            });
+                [&]()
+                {
+                    return !resources_.logging || resources_.work;
+                });
 
         resources_.work = false;
 
@@ -201,7 +203,7 @@ void Log::KillThread()
         // Each VS version deals with post-main deallocation of threads in a very different way.
 #if !defined(_WIN32) || defined(FASTRTPS_STATIC_LINK) || _MSC_VER >= 1800
         resources_.logging_thread->join();
-#endif
+#endif // if !defined(_WIN32) || defined(FASTRTPS_STATIC_LINK) || _MSC_VER >= 1800
         resources_.logging_thread.reset();
     }
 }
@@ -236,6 +238,18 @@ Log::Kind Log::GetVerbosity()
 }
 
 void Log::SetVerbosity(
+        Log::Kind kind)
+{
+    std::unique_lock<std::mutex> configGuard(resources_.config_mutex);
+    resources_.verbosity = Log::Quiet;
+    while (kind > Log::Quiet)
+    {
+        resources_.verbosity = static_cast<Log::Kind>(resources_.verbosity.load() | kind);
+        kind = static_cast<Log::Kind>(kind >> 1);
+    }
+}
+
+void Log::SetVerbosityMask(
         Log::Kind kind)
 {
     std::unique_lock<std::mutex> configGuard(resources_.config_mutex);
@@ -282,7 +296,7 @@ void Log::get_timestamp(
     //    (void)ms;
 #else
     stream << std::put_time(localtime(&now_c), "%F %T") << "." << std::setw(3) << std::setfill('0') << ms << " ";
-#endif
+#endif // if defined(_WIN32)
     timestamp = stream.str();
 }
 

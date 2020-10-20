@@ -64,15 +64,26 @@ public:
 
     /**
      * Types of log entry.
-     * * Error: Maximum priority. Can only be disabled statically through LOG_NO_ERROR.
-     * * Warning: Medium priority.  Can be disabled statically and dynamically.
-     * * Info: Low priority. Useful for debugging. Disabled by default on release branches.
+     * * Quiet: Disables
+     * * Fatal: Unrecoverable error, the execution will end.
+     * * Critical: Potential unrecoverable error. The execution will try to continue, but it's very likely it will
+     * *    fail.
+     * * Error: Unexpected but recoverable situation. The execution will continue.
+     * * User: Log messages created by the user.
+     * * Warning: Unexpected condition, may affect to the normal behavior of the application.
+     * * Info: Useful information about the performed operations. Disabled by default on release branches.
+     * * Debug: Useful for debugging. Disabled by default on release branches.
      */
     enum Kind
     {
-        Error,
-        Warning,
-        Info,
+        Quiet =     0x00000000,
+        Fatal =     0x00000001,
+        Critical =  0x00000010,
+        Error =     0x00000100,
+        User =      0x00001000, // User log will be shown by default, but warning don't.
+        Warning =   0x00010000,
+        Info =      0x00100000,
+        Debug =     0x01000000,
     };
 
     /**
@@ -96,6 +107,10 @@ public:
 
     //! Sets the verbosity level, allowing for messages equal or under that priority to be logged.
     RTPS_DllAPI static void SetVerbosity(
+            Log::Kind);
+
+    //! Sets the verbosity mask, allowing for messages which matches the priority mask to be logged.
+    RTPS_DllAPI static void SetVerbosityMask(
             Log::Kind);
 
     //! Returns the current verbosity level.
@@ -239,7 +254,7 @@ protected:
 
 #if defined(WIN32)
 #define __func__ __FUNCTION__
-#endif
+#endif // if defined(WIN32)
 
 #ifndef LOG_NO_ERROR
 #define logError_(cat, msg)                                                                          \
@@ -261,13 +276,13 @@ protected:
     }
 #else
 #define logError_(cat, msg)
-#endif
+#endif // ifndef LOG_NO_ERROR
 
 #ifndef LOG_NO_WARNING
 #define logWarning_(cat, msg)                                                                              \
     {                                                                                                      \
         using namespace eprosima::fastdds::dds;                                                            \
-        if (Log::GetVerbosity() >= Log::Kind::Warning)                                                     \
+        if (Log::GetVerbosity() & Log::Kind::Warning)                                                      \
         {                                                                                                  \
             std::stringstream ss;                                                                          \
             ss << msg;                                                                                     \
@@ -286,14 +301,14 @@ protected:
     }
 #else
 #define logWarning_(cat, msg)
-#endif
+#endif // ifndef LOG_NO_WARNING
 
 #if (defined(__INTERNALDEBUG) || defined(_INTERNALDEBUG)) && (defined(_DEBUG) || defined(__DEBUG)) && \
     (!defined(LOG_NO_INFO))
 #define logInfo_(cat, msg)                                                                              \
     {                                                                                                   \
         using namespace eprosima::fastdds::dds;                                                         \
-        if (Log::GetVerbosity() >= Log::Kind::Info)                                                     \
+        if (Log::GetVerbosity() & Log::Kind::Info)                                                      \
         {                                                                                               \
             std::stringstream ss;                                                                       \
             ss << msg;                                                                                  \
@@ -312,10 +327,10 @@ protected:
     }
 #else
 #define logInfo_(cat, msg)
-#endif
+#endif // if (defined(__INTERNALDEBUG) || defined(_INTERNALDEBUG)) && (defined(_DEBUG) || defined(__DEBUG)) && (!defined(LOG_NO_INFO))
 
 } // namespace dds
 } // namespace fastdds
 } // namespace eprosima
 
-#endif
+#endif // ifndef _FASTDDS_LOG_LOG_HPP_
