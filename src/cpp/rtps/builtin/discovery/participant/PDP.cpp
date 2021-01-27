@@ -363,6 +363,14 @@ bool PDP::initPDP(
     mp_RTPSParticipant = part;
     m_discovery = mp_RTPSParticipant->getAttributes().builtin;
     initial_announcements_ = m_discovery.discovery_config.initial_announcements;
+
+#if HAVE_SECURITY
+    if (part->is_secure())
+    {
+        m_discovery.discovery_config.ignoreParticipantFlags = ParticipantFilteringFlags_t::NO_FILTER;
+    }
+#endif // if HAVE_SECURITY
+
     //CREATE ENDPOINTS
     if (!createPDPEndpoints())
     {

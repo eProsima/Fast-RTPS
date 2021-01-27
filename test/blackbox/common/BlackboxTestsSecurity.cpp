@@ -158,7 +158,7 @@ TEST_P(Security, BuiltinAuthenticationPlugin_PKIDH_validation_fail)
 
         PropertyPolicy pub_property_policy;
 
-        reader.history_depth(10).
+        reader.history_depth(10).ignore_participant_flags(eprosima::fastrtps::rtps::NO_FILTER).
                 reliability(eprosima::fastrtps::RELIABLE_RELIABILITY_QOS).init();
 
         ASSERT_TRUE(reader.isInitialized());

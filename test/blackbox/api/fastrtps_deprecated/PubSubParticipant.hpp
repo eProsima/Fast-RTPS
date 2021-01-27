@@ -165,6 +165,10 @@ public:
         publisher_attr_.historyMemoryPolicy = rtps::PREALLOCATED_MEMORY_MODE;
 #endif // if defined(PREALLOCATED_WITH_REALLOC_MEMORY_MODE_TEST)
 
+        // By default, only allow participants on the same host
+        participant_attr_.rtps.builtin.discovery_config.ignoreParticipantFlags =
+                eprosima::fastrtps::rtps::FILTER_DIFFERENT_HOST;
+
         // By default, heartbeat period and nack response delay are 100 milliseconds.
         publisher_attr_.times.heartbeatPeriod.seconds = 0;
         publisher_attr_.times.heartbeatPeriod.nanosec = 100000000;
@@ -392,6 +396,13 @@ public:
             const eprosima::fastrtps::rtps::PropertyPolicy property_policy)
     {
         participant_attr_.rtps.properties = property_policy;
+        return *this;
+    }
+
+    PubSubParticipant& ignore_participant_flags(
+            eprosima::fastrtps::rtps::ParticipantFilteringFlags_t flags)
+    {
+        participant_attr_.rtps.builtin.discovery_config.ignoreParticipantFlags = flags;
         return *this;
     }
 

@@ -275,6 +275,10 @@ public:
         t << topic_name_ << "_" << asio::ip::host_name() << "_" << GET_PID();
         topic_name_ = t.str();
 
+        // By default, only allow participants on the same host
+        participant_qos_.wire_protocol().builtin.discovery_config.ignoreParticipantFlags =
+                eprosima::fastrtps::rtps::FILTER_DIFFERENT_HOST;
+
         // By default, memory mode is preallocated (the most restritive)
         datareader_qos_.endpoint().history_memory_policy = eprosima::fastrtps::rtps::PREALLOCATED_MEMORY_MODE;
 
@@ -1056,6 +1060,13 @@ public:
             int32_t participantId)
     {
         participant_qos_.wire_protocol().participant_id = participantId;
+        return *this;
+    }
+
+    PubSubReader& ignore_participant_flags(
+            eprosima::fastrtps::rtps::ParticipantFilteringFlags_t flags)
+    {
+        participant_qos_.wire_protocol().builtin.discovery_config.ignoreParticipantFlags = flags;
         return *this;
     }
 

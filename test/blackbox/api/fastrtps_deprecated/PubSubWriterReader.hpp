@@ -325,6 +325,10 @@ public:
         subscriber_attr_.topic.topicKind =
                 type_.m_isGetKeyDefined ? ::eprosima::fastrtps::rtps::WITH_KEY : ::eprosima::fastrtps::rtps::NO_KEY;
 
+        // By default, only allow participants on the same host
+        participant_attr_.rtps.builtin.discovery_config.ignoreParticipantFlags =
+                eprosima::fastrtps::rtps::FILTER_DIFFERENT_HOST;
+
         // By default, memory mode is preallocated (the most restritive)
         publisher_attr_.historyMemoryPolicy = eprosima::fastrtps::rtps::PREALLOCATED_MEMORY_MODE;
         subscriber_attr_.historyMemoryPolicy = eprosima::fastrtps::rtps::PREALLOCATED_MEMORY_MODE;
@@ -636,6 +640,13 @@ public:
             const eprosima::fastrtps::rtps::PropertyPolicy property_policy)
     {
         participant_attr_.rtps.properties = property_policy;
+        return *this;
+    }
+
+    PubSubWriterReader& ignore_participant_flags(
+            eprosima::fastrtps::rtps::ParticipantFilteringFlags_t flags)
+    {
+        participant_attr_.rtps.builtin.discovery_config.ignoreParticipantFlags = flags;
         return *this;
     }
 

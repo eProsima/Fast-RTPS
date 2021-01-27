@@ -150,6 +150,9 @@ public:
         , sub_times_liveliness_lost_(0)
         , sub_times_liveliness_recovered_(0)
     {
+        // By default, only allow participants on the same host
+        participant_qos_.wire_protocol().builtin.discovery_config.ignoreParticipantFlags =
+                eprosima::fastrtps::rtps::FILTER_DIFFERENT_HOST;
 
 #if defined(PREALLOCATED_WITH_REALLOC_MEMORY_MODE_TEST)
         datawriter_qos_.historyMemoryPolicy = rtps::PREALLOCATED_WITH_REALLOC_MEMORY_MODE;
@@ -453,6 +456,13 @@ public:
             const eprosima::fastrtps::rtps::PropertyPolicy property_policy)
     {
         participant_qos_.properties() = property_policy;
+        return *this;
+    }
+
+    PubSubParticipant& ignore_participant_flags(
+            eprosima::fastrtps::rtps::ParticipantFilteringFlags_t flags)
+    {
+        participant_qos_.wire_protocol().builtin.discovery_config.ignoreParticipantFlags = flags;
         return *this;
     }
 
