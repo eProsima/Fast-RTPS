@@ -179,7 +179,7 @@ endif()
 ###############################################################################
 set(BIN_INSTALL_DIR bin/ CACHE PATH "Installation directory for binaries")
 set(INCLUDE_INSTALL_DIR include/ CACHE PATH "Installation directory for C++ headers")
-set(LIB_INSTALL_DIR lib/ CACHE PATH "Installation directory for libraries")
+set(LIB_INSTALL_DIR lib${LIB_SUFFIX}/ CACHE PATH "Installation directory for libraries")
 set(DATA_INSTALL_DIR share/ CACHE PATH "Installation directory for data")
 if(WIN32)
     set(DOC_DIR "doc")
