@@ -36,14 +36,17 @@ public:
                     // No cleanup is required
                 };
 
-        send_lambda_ = [&transport](
-            const fastrtps::rtps::octet* data,
-            uint32_t dataSize,
+        send_buffers_lambda_ = [&transport](
+            const NetworkBuffer* buffers,
+            size_t num_buffers,
+            uint32_t total_bytes,
             fastrtps::rtps::LocatorsIterator* destination_locators_begin,
             fastrtps::rtps::LocatorsIterator* destination_locators_end,
             const std::chrono::steady_clock::time_point& max_blocking_time_point) -> bool
                 {
-                    return transport.send(data, dataSize, destination_locators_begin, destination_locators_end,
+                    assert(num_buffers <= max_required_buffers);
+                    return transport.send(buffers, num_buffers, total_bytes,
+                                   destination_locators_begin, destination_locators_end,
                                    max_blocking_time_point);
                 };
 

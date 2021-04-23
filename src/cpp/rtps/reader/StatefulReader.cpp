@@ -1266,10 +1266,13 @@ void StatefulReader::send_acknack(
 }
 
 bool StatefulReader::send_sync_nts(
-        CDRMessage_t* message,
+        const RTPSMessageSenderInterface::NetworkBuffer* buffers,
+        size_t num_buffers,
+        uint32_t total_bytes,
         const Locators& locators_begin,
         const Locators& locators_end,
         std::chrono::steady_clock::time_point& max_blocking_time_point)
 {
-    return mp_RTPSParticipant->sendSync(message, locators_begin, locators_end, max_blocking_time_point);
+    return mp_RTPSParticipant->sendSync(buffers, num_buffers, total_bytes,
+                   locators_begin, locators_end, max_blocking_time_point);
 }

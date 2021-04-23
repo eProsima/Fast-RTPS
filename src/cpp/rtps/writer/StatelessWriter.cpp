@@ -1074,18 +1074,20 @@ void StatelessWriter::add_flow_controller(
 }
 
 bool StatelessWriter::send(
-        CDRMessage_t* message,
+        const RTPSMessageSenderInterface::NetworkBuffer* buffers,
+        size_t num_buffers,
+        uint32_t total_bytes,
         std::chrono::steady_clock::time_point& max_blocking_time_point) const
 {
-    if (!RTPSWriter::send(message, max_blocking_time_point))
+    if (!RTPSWriter::send(buffers, num_buffers, total_bytes, max_blocking_time_point))
     {
         return false;
     }
 
     return ignore_fixed_locators_ ||
            fixed_locators_.empty() ||
-           mp_RTPSParticipant->sendSync(message, Locators(fixed_locators_.begin()), Locators(
-                       fixed_locators_.end()), max_blocking_time_point);
+           mp_RTPSParticipant->sendSync(buffers, num_buffers, total_bytes,
+                   Locators(fixed_locators_.begin()), Locators(fixed_locators_.end()), max_blocking_time_point);
 }
 
 } /* namespace rtps */

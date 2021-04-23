@@ -20,9 +20,9 @@
 #include <fastdds/rtps/common/Locator.h>
 #include <fastdds/rtps/common/LocatorSelector.hpp>
 #include <fastdds/rtps/common/PortParameters.h>
+#include <fastdds/rtps/network/SenderResource.h>
 #include <fastdds/rtps/transport/TransportDescriptorInterface.h>
 #include <fastdds/rtps/transport/TransportReceiverInterface.h>
-#include <fastdds/rtps/network/SenderResource.h>
 
 namespace eprosima {
 namespace fastdds {
@@ -51,6 +51,9 @@ using SendResourceList = std::vector<std::unique_ptr<fastrtps::rtps::SenderResou
 class TransportInterface
 {
 public:
+
+    using SenderResource = eprosima::fastrtps::rtps::SenderResource;
+    static constexpr size_t max_required_buffers = SenderResource::max_required_buffers;
 
     /**
      * Aside from the API defined here, an user-defined Transport must define a descriptor data type and a constructor that

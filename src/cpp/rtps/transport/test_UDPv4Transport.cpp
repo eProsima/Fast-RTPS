@@ -154,8 +154,8 @@ void test_UDPv4Transport::get_ips(
 }
 
 bool test_UDPv4Transport::send(
-        const octet* send_buffer,
-        uint32_t send_buffer_size,
+        const std::array<asio::const_buffer, max_required_buffers>& send_buffers,
+        uint32_t total_bytes,
         eProsimaUDPSocket& socket,
         fastrtps::rtps::LocatorsIterator* destination_locators_begin,
         fastrtps::rtps::LocatorsIterator* destination_locators_end,
@@ -172,8 +172,8 @@ bool test_UDPv4Transport::send(
 
         if (now < max_blocking_time_point)
         {
-            ret &= send(send_buffer,
-                            send_buffer_size,
+            ret &= send(send_buffers,
+                            total_bytes,
                             socket,
                             *it,
                             only_multicast_purpose,
@@ -192,21 +192,21 @@ bool test_UDPv4Transport::send(
 }
 
 bool test_UDPv4Transport::send(
-        const octet* send_buffer,
-        uint32_t send_buffer_size,
+        const std::array<asio::const_buffer, max_required_buffers>& send_buffers,
+        uint32_t total_bytes,
         eProsimaUDPSocket& socket,
         const Locator& remote_locator,
         bool only_multicast_purpose,
         const std::chrono::microseconds& timeout)
 {
-    if (packet_should_drop(send_buffer, send_buffer_size))
+    if (packet_should_drop(send_buffers, total_bytes))
     {
-        log_drop(send_buffer, send_buffer_size);
+        log_drop(send_buffers);
         return true;
     }
     else
     {
-        return UDPv4Transport::send(send_buffer, send_buffer_size, socket, remote_locator, only_multicast_purpose,
+        return UDPv4Transport::send(send_buffers, total_bytes, socket, remote_locator, only_multicast_purpose,
                        timeout);
     }
 }
@@ -246,17 +246,23 @@ static bool ReadSubmessageHeader(
 }
 
 bool test_UDPv4Transport::packet_should_drop(
-        const octet* send_buffer,
-        uint32_t send_buffer_size)
+        const std::array<asio::const_buffer, max_required_buffers>& send_buffers,
+        uint32_t total_bytes)
 {
     if (test_UDPv4Transport_ShutdownAllNetwork)
     {
         return true;
     }
 
-    CDRMessage_t cdrMessage(send_buffer_size);
-    memcpy(cdrMessage.buffer, send_buffer, send_buffer_size);
-    cdrMessage.length = send_buffer_size;
+    CDRMessage_t cdrMessage(total_bytes);
+    size_t n_bytes = 0;
+    for (size_t i = 0; i < max_required_buffers; ++i)
+    {
+        memcpy(&cdrMessage.buffer[n_bytes], send_buffers[i].data(), send_buffers[i].size());
+        n_bytes += send_buffers[i].size();
+    }
+    assert(total_bytes == n_bytes);
+    cdrMessage.length = total_bytes;
 
     if (cdrMessage.length < RTPSMESSAGE_HEADER_SIZE)
     {
@@ -407,13 +413,19 @@ bool test_UDPv4Transport::packet_should_drop(
 }
 
 bool test_UDPv4Transport::log_drop(
-        const octet* buffer,
-        uint32_t size)
+        const std::array<asio::const_buffer, max_required_buffers>& send_buffers)
 {
     if (test_UDPv4Transport_DropLog.size() < test_UDPv4Transport_DropLogLength)
     {
         vector<octet> message;
-        message.assign(buffer, buffer + size);
+        for (const auto& buf : send_buffers)
+        {
+            if (buf.size())
+            {
+                auto byte_data = static_cast<const octet*>(buf.data());
+                message.insert(message.end(), byte_data, byte_data + buf.size());
+            }
+        }
         test_UDPv4Transport_DropLog.push_back(message);
         return true;
     }

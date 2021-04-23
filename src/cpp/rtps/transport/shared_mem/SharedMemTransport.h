@@ -135,19 +135,19 @@ public:
             uint32_t unicast_port) const override;
 
     /**
-     * Blocking Send through the specified channel. In both modes, using a localLocator of 0.0.0.0 will
-     * send through all whitelisted interfaces provided the channel is open.
-     * @param send_buffer Slice into the raw data to send.
-     * @param send_buffer_size Size of the raw data. It will be used as a bounds check for the previous argument.
-     * It must not exceed the send_buffer_size fed to this class during construction.
-     * @param socket channel we're sending from.
-     * @param remote_locator Locator describing the remote destination we're sending to.
-     * @param only_multicast_purpose
-     * @param timeout Maximum time this function will block
+     * Blocking Send to a list of destinations.
+     * @param buffers Array of buffers to gather.
+     * @param num_buffers Number of elements on @c buffers.
+     * @param total_bytes Total size of the raw data. Should be equal to the sum of the @c length field of all buffers.
+     *                    It must not exceed the value returned by configuration()->segment_size().
+     * @param destination_locators_begin Beginning iterator for the list of destinations.
+     * @param destination_locators_end Ending iterator for the list of destinations.
+     * @param timeout Maximum time this function will block.
      */
     virtual bool send(
-            const fastrtps::rtps::octet* send_buffer,
-            uint32_t send_buffer_size,
+            const NetworkBuffer* buffers,
+            size_t num_buffers,
+            uint32_t total_bytes,
             fastrtps::rtps::LocatorsIterator* destination_locators_begin,
             fastrtps::rtps::LocatorsIterator* destination_locators_end,
             const std::chrono::steady_clock::time_point& max_blocking_time_point);
@@ -236,11 +236,6 @@ protected:
             TransportReceiverInterface* receiver);
 
 private:
-
-    std::shared_ptr<SharedMemManager::Buffer> copy_to_shared_buffer(
-            const fastrtps::rtps::octet* send_buffer,
-            uint32_t send_buffer_size,
-            const std::chrono::steady_clock::time_point& max_blocking_time_point);
 
     bool send(
             const std::shared_ptr<SharedMemManager::Buffer>& buffer,

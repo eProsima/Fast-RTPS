@@ -240,13 +240,17 @@ bool TCPTransportInterface::check_crc(
 
 void TCPTransportInterface::calculate_crc(
         TCPHeader& header,
-        const octet* data,
-        uint32_t size) const
+        const std::array<asio::const_buffer, max_required_buffers>& send_buffers) const
 {
     uint32_t crc(0);
-    for (uint32_t i = 0; i < size; ++i)
+    for (const asio::const_buffer& buf : send_buffers)
     {
-        crc = RTCPMessageManager::addToCRC(crc, data[i]);
+        size_t size = buf.size();
+        const octet* data = static_cast<const octet*>(buf.data());
+        for (size_t i = 0; i < size; ++i)
+        {
+            crc = RTCPMessageManager::addToCRC(crc, data[i]);
+        }
     }
     header.crc = crc;
 }
@@ -326,15 +330,15 @@ bool TCPTransportInterface::create_acceptor_socket(
 
 void TCPTransportInterface::fill_rtcp_header(
         TCPHeader& header,
-        const octet* send_buffer,
-        uint32_t send_buffer_size,
+        const std::array<asio::const_buffer, max_required_buffers>& send_buffers,
+        uint32_t total_bytes,
         uint16_t logical_port) const
 {
-    header.length = send_buffer_size + static_cast<uint32_t>(TCPHeader::size());
+    header.length = total_bytes + static_cast<uint32_t>(TCPHeader::size());
     header.logical_port = logical_port;
     if (configuration()->calculate_crc)
     {
-        calculate_crc(header, send_buffer, send_buffer_size);
+        calculate_crc(header, send_buffers);
     }
 }
 
@@ -1026,8 +1030,8 @@ bool TCPTransportInterface::Receive(
 }
 
 bool TCPTransportInterface::send(
-        const octet* send_buffer,
-        uint32_t send_buffer_size,
+        const std::array<asio::const_buffer, max_required_buffers>& send_buffers,
+        uint32_t total_bytes,
         std::shared_ptr<TCPChannelResource>& channel,
         fastrtps::rtps::LocatorsIterator* destination_locators_begin,
         fastrtps::rtps::LocatorsIterator* destination_locators_end)
@@ -1040,7 +1044,7 @@ bool TCPTransportInterface::send(
     {
         if (IsLocatorSupported(*it))
         {
-            ret &= send(send_buffer, send_buffer_size, channel, *it);
+            ret &= send(send_buffers, total_bytes, channel, *it);
         }
 
         ++it;
@@ -1050,8 +1054,8 @@ bool TCPTransportInterface::send(
 }
 
 bool TCPTransportInterface::send(
-        const octet* send_buffer,
-        uint32_t send_buffer_size,
+        const std::array<asio::const_buffer, max_required_buffers>& send_buffers,
+        uint32_t total_bytes,
         std::shared_ptr<TCPChannelResource>& channel,
         const Locator& remote_locator)
 {
@@ -1076,7 +1080,7 @@ bool TCPTransportInterface::send(
         }
     }
 
-    if (locator_mismatch || send_buffer_size > configuration()->sendBufferSize)
+    if (locator_mismatch || total_bytes > configuration()->sendBufferSize)
     {
         //std::cout << "ChannelLocator: " << IPLocator::to_string(channel->locator()) << std::endl;
         //std::cout << "RemoteLocator: " << IPLocator::to_string(remote_locator) << std::endl;
@@ -1109,21 +1113,20 @@ bool TCPTransportInterface::send(
             if (channel->is_logical_port_opened(logical_port))
             {
                 TCPHeader tcp_header;
-                fill_rtcp_header(tcp_header, send_buffer, send_buffer_size, logical_port);
+                fill_rtcp_header(tcp_header, send_buffers, total_bytes, logical_port);
 
                 {
                     asio::error_code ec;
                     size_t sent = channel->send(
                         (octet*)&tcp_header,
                         static_cast<uint32_t>(TCPHeader::size()),
-                        send_buffer,
-                        send_buffer_size,
+                        send_buffers,
                         ec);
 
-                    if (sent != static_cast<uint32_t>(TCPHeader::size() + send_buffer_size) || ec)
+                    if (sent != static_cast<uint32_t>(TCPHeader::size() + total_bytes) || ec)
                     {
                         logWarning(DEBUG, "Failed to send RTCP message (" << sent << " of " <<
-                                TCPHeader::size() + send_buffer_size << " b): " << ec.message());
+                                TCPHeader::size() + total_bytes << " b): " << ec.message());
                         success = false;
                     }
                     else

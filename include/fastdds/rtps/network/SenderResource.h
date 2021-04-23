@@ -16,17 +16,14 @@
 #define _FASTDDS_RTPS_SENDER_RESOURCE_H
 
 #include <functional>
-#include <vector>
 #include <chrono>
 
 #include <fastdds/rtps/common/Locator.h>
+#include <fastdds/rtps/network/NetworkBuffer.hpp>
 
 namespace eprosima {
 namespace fastrtps {
 namespace rtps {
-
-class RTPSParticipantImpl;
-class MessageReceiver;
 
 /**
  * RAII object that encapsulates the Send operation over one chanel in an unknown transport.
@@ -39,11 +36,21 @@ class SenderResource
 {
 public:
 
+    using NetworkBuffer = eprosima::fastdds::rtps::NetworkBuffer;
+
+    /* The maximum number of buffers that will be sent on a single send call.
+     * We are currently supporting 3 buffers, due to the way RTPSMessageGroup works.
+     * Only the last DATA / DATA_FRAG on the datagram may be back-referenced, so there will be at most 3 buffers used:
+     * - Buffer with RTPS header + other submessages + DATA / DATA_FRAG header
+     * - Buffer pointing to history cache payload
+     * - Buffer with padding of up to 3 bytes
+     */
+    static constexpr size_t max_required_buffers = 3;
+
     /**
      * Sends to a destination locator, through the channel managed by this resource.
-     * @param data Raw data slice to be sent.
-     * @param dataLength Length of the data to be sent. Will be used as a boundary for
-     * the previous parameter.
+     * @param data Pointer to the contiguous data buffer.
+     * @param data_size Number of bytes in @c data to send.
      * @param destination_locators_begin destination endpoint Locators iterator begin.
      * @param destination_locators_end destination endpoint Locators iterator end.
      * @param max_blocking_time_point If transport supports it then it will use it as maximum blocking time.
@@ -51,20 +58,57 @@ public:
      */
     bool send(
             const octet* data,
-            uint32_t dataLength,
+            uint32_t data_size,
             LocatorsIterator* destination_locators_begin,
             LocatorsIterator* destination_locators_end,
             const std::chrono::steady_clock::time_point& max_blocking_time_point)
     {
-        bool returned_value = false;
+        if (send_lambda_ && !send_buffers_lambda_)
+        {
+            logWarning(RTPS, "The usage of send_lambda_ on SenderResource has been deprecated."
+                    << std::endl << "Please implement send_buffers_lambda_ instead.");
+            return send_lambda_(data, data_size,
+                           destination_locators_begin, destination_locators_end, max_blocking_time_point);
+        }
+
+        NetworkBuffer buf{ data, data_size };
+        return send(&buf, 1, data_size,
+                       destination_locators_begin, destination_locators_end, max_blocking_time_point);
+    }
+
+    /**
+     * Sends to a destination locator, through the channel managed by this resource.
+     * @param buffers Array of buffers to gather.
+     * @param num_buffers Number of elements on @c buffers.
+     * @param total_bytes Total size of the raw data. Should be equal to the sum of the @c length field of all
+     * buffers.
+     * @param destination_locators_begin destination endpoint Locators iterator begin.
+     * @param destination_locators_end destination endpoint Locators iterator end.
+     * @param max_blocking_time_point If transport supports it then it will use it as maximum blocking time.
+     * @return Success of the send operation.
+     */
+    bool send(
+            const NetworkBuffer* buffers,
+            size_t num_buffers,
+            uint32_t total_bytes,
+            LocatorsIterator* destination_locators_begin,
+            LocatorsIterator* destination_locators_end,
+            const std::chrono::steady_clock::time_point& max_blocking_time_point)
+    {
+        if (send_buffers_lambda_)
+        {
+            return send_buffers_lambda_(buffers, num_buffers, total_bytes,
+                           destination_locators_begin, destination_locators_end, max_blocking_time_point);
+        }
 
         if (send_lambda_)
         {
-            returned_value = send_lambda_(data, dataLength, destination_locators_begin, destination_locators_end,
-                            max_blocking_time_point);
+            send_lambda_ = nullptr;
+            logError(RTPS, "The usage of send_lambda_ on SenderResource has been deprecated."
+                    << std::endl << "Please implement send_buffers_lambda_ instead.");
         }
 
-        return returned_value;
+        return false;
     }
 
     /**
@@ -73,9 +117,11 @@ public:
      */
     SenderResource(
             SenderResource&& rValueResource)
+        : transport_kind_(rValueResource.transport_kind_)
     {
         clean_up.swap(rValueResource.clean_up);
         send_lambda_.swap(rValueResource.send_lambda_);
+        send_buffers_lambda_.swap(rValueResource.send_buffers_lambda_);
     }
 
     virtual ~SenderResource() = default;
@@ -108,17 +154,24 @@ protected:
 
     std::function<void()> clean_up;
     std::function<bool(
-                const octet*,
-                uint32_t,
+                const octet* data,
+                uint32_t data_size,
                 LocatorsIterator* destination_locators_begin,
                 LocatorsIterator* destination_locators_end,
                 const std::chrono::steady_clock::time_point&)> send_lambda_;
+    std::function<bool(
+                const NetworkBuffer* buffers,
+                size_t num_buffers,
+                uint32_t total_bytes,
+                LocatorsIterator* destination_locators_begin,
+                LocatorsIterator* destination_locators_end,
+                const std::chrono::steady_clock::time_point&)> send_buffers_lambda_;
 
 private:
 
-    SenderResource()                                 = delete;
+    SenderResource() = delete;
     SenderResource(
-            const SenderResource&)            = delete;
+            const SenderResource&) = delete;
     SenderResource& operator =(
             const SenderResource&) = delete;
 };

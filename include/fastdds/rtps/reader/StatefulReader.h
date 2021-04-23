@@ -262,13 +262,17 @@ public:
 
     /**
      * Use the participant of this reader to send a message to certain locator.
-     * @param message Message to be sent.
+     * @param buffers Array of buffers to gather.
+     * @param num_buffers Number of elements on @c buffers.
+     * @param total_bytes Total size of the raw data. Should be equal to the sum of the @c length field of all buffers.
      * @param locators_begin Destination locators iterator begin.
      * @param locators_end Destination locators iterator end.
      * @param max_blocking_time_point Future time point where any blocking should end.
      */
     bool send_sync_nts(
-            CDRMessage_t* message,
+            const RTPSMessageSenderInterface::NetworkBuffer* buffers,
+            size_t num_buffers,
+            uint32_t total_bytes,
             const Locators& locators_begin,
             const Locators& locators_end,
             std::chrono::steady_clock::time_point& max_blocking_time_point);

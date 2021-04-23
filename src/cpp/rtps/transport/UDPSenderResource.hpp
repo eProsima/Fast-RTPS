@@ -43,14 +43,26 @@ public:
                     transport.CloseOutputChannel(socket_);
                 };
 
-        send_lambda_ = [this, &transport](
-            const fastrtps::rtps::octet* data,
-            uint32_t dataSize,
+        send_buffers_lambda_ = [this, &transport](
+            const NetworkBuffer* buffers,
+            size_t num_buffers,
+            uint32_t total_bytes,
             fastrtps::rtps::LocatorsIterator* destination_locators_begin,
             fastrtps::rtps::LocatorsIterator* destination_locators_end,
             const std::chrono::steady_clock::time_point& max_blocking_time_point) -> bool
                 {
-                    return transport.send(data, dataSize, socket_, destination_locators_begin,
+                    assert(num_buffers <= max_required_buffers);
+
+                    std::array<asio::const_buffer, max_required_buffers> asio_buffers;
+                    uint32_t total_num_bytes = 0;
+                    for (size_t i = 0; i < num_buffers; ++i)
+                    {
+                        asio_buffers[i] = { buffers[i].buffer, buffers[i].length };
+                        total_num_bytes += buffers[i].length;
+                    }
+
+                    assert(total_num_bytes == total_bytes);
+                    return transport.send(asio_buffers, total_bytes, socket_, destination_locators_begin,
                                    destination_locators_end, only_multicast_purpose_, max_blocking_time_point);
                 };
     }

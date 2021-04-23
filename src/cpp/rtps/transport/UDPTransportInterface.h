@@ -98,8 +98,8 @@ public:
     /**
      * Blocking Send through the specified channel. In both modes, using a localLocator of 0.0.0.0 will
      * send through all whitelisted interfaces provided the channel is open.
-     * @param send_buffer Slice into the raw data to send.
-     * @param send_buffer_size Size of the raw data. It will be used as a bounds check for the previous argument.
+     * @param send_buffers Slice into the raw data to send.
+     * @param total_bytes Size of the raw data. It will be used as a bounds check for the previous argument.
      * It must not exceed the send_buffer_size fed to this class during construction.
      * @param socket channel we're sending from.
      * @param destination_locators_begin pointer to destination locators iterator begin, the iterator can be advanced inside this fuction
@@ -110,8 +110,8 @@ public:
      * @param max_blocking_time_point maximum blocking time.
      */
     virtual bool send(
-            const fastrtps::rtps::octet* send_buffer,
-            uint32_t send_buffer_size,
+            const std::array<asio::const_buffer, max_required_buffers>& send_buffers,
+            uint32_t total_bytes,
             eProsimaUDPSocket& socket,
             fastrtps::rtps::LocatorsIterator* destination_locators_begin,
             fastrtps::rtps::LocatorsIterator* destination_locators_end,
@@ -250,8 +250,8 @@ protected:
      * Send a buffer to a destination
      */
     bool send(
-            const fastrtps::rtps::octet* send_buffer,
-            uint32_t send_buffer_size,
+            const std::array<asio::const_buffer, max_required_buffers>& send_buffers,
+            uint32_t total_bytes,
             eProsimaUDPSocket& socket,
             const Locator& remote_locator,
             bool only_multicast_purpose,

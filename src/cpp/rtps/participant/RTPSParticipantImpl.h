@@ -248,7 +248,9 @@ public:
 
     /**
      * Send a message to several locations
-     * @param msg Message to send.
+     * @param buffers Array of buffers to gather.
+     * @param num_buffers Number of elements on @c buffers.
+     * @param total_bytes Total size of the raw data. Should be equal to the sum of the @c length field of all buffers.
      * @param destination_locators_begin Iterator at the first destination locator.
      * @param destination_locators_end Iterator at the end destination locator.
      * @param max_blocking_time_point execution time limit timepoint.
@@ -256,7 +258,9 @@ public:
      */
     template<class LocatorIteratorT>
     bool sendSync(
-            CDRMessage_t* msg,
+            const SenderResource::NetworkBuffer* buffers,
+            size_t num_buffers,
+            uint32_t total_bytes,
             const LocatorIteratorT& destination_locators_begin,
             const LocatorIteratorT& destination_locators_end,
             std::chrono::steady_clock::time_point& max_blocking_time_point)
@@ -272,7 +276,7 @@ public:
             {
                 LocatorIteratorT locators_begin = destination_locators_begin;
                 LocatorIteratorT locators_end = destination_locators_end;
-                send_resource->send(msg->buffer, msg->length, &locators_begin, &locators_end,
+                send_resource->send(buffers, num_buffers, total_bytes, &locators_begin, &locators_end,
                         max_blocking_time_point);
             }
         }

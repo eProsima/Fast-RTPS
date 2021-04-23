@@ -386,24 +386,10 @@ bool SharedMemTransport::transform_remote_locator(
     return false;
 }
 
-std::shared_ptr<SharedMemManager::Buffer> SharedMemTransport::copy_to_shared_buffer(
-        const octet* send_buffer,
-        uint32_t send_buffer_size,
-        const std::chrono::steady_clock::time_point& max_blocking_time_point)
-{
-    assert(shared_mem_segment_);
-
-    std::shared_ptr<SharedMemManager::Buffer> shared_buffer =
-            shared_mem_segment_->alloc_buffer(send_buffer_size, max_blocking_time_point);
-
-    memcpy(shared_buffer->data(), send_buffer, send_buffer_size);
-
-    return shared_buffer;
-}
-
 bool SharedMemTransport::send(
-        const octet* send_buffer,
-        uint32_t send_buffer_size,
+        const NetworkBuffer* buffers,
+        size_t num_buffers,
+        uint32_t total_bytes,
         fastrtps::rtps::LocatorsIterator* destination_locators_begin,
         fastrtps::rtps::LocatorsIterator* destination_locators_end,
         const std::chrono::steady_clock::time_point& max_blocking_time_point)
@@ -423,7 +409,16 @@ bool SharedMemTransport::send(
                 // Only copy the first time
                 if (shared_buffer == nullptr)
                 {
-                    shared_buffer = copy_to_shared_buffer(send_buffer, send_buffer_size, max_blocking_time_point);
+                    shared_buffer = shared_mem_segment_->alloc_buffer(total_bytes, max_blocking_time_point);
+                    octet* pos = static_cast<octet*>(shared_buffer->data());
+                    for (size_t i = 0; i < num_buffers; ++i)
+                    {
+                        if (buffers[i].length)
+                        {
+                            memcpy(pos, buffers[i].buffer, buffers[i].length);
+                            pos += buffers[i].length;
+                        }
+                    }
                 }
 
                 ret &= send(shared_buffer, *it);

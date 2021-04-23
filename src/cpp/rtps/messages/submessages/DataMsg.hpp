@@ -41,8 +41,11 @@ bool RTPSMessageCreator::addMessageData(
     RTPSMessageCreator::addSubmessageInfoTS_Now(msg, false);
 
     bool is_big_submessage;
+    octet* pending_payload = nullptr;
+    uint32_t pending_size = 0;
+    uint32_t pending_padding = 0;
     RTPSMessageCreator::addSubmessageData(msg, change, topicKind, readerId, expectsInlineQos, inlineQos,
-            &is_big_submessage);
+            is_big_submessage, true, pending_payload, pending_size, pending_padding);
 
     msg->length = msg->pos;
 
@@ -56,8 +59,18 @@ bool RTPSMessageCreator::addSubmessageData(
         const EntityId_t& readerId,
         bool expectsInlineQos,
         InlineQosWriter* inlineQos,
-        bool* is_big_submessage)
+        bool& is_big_submessage,
+        bool copy_data,
+        octet*& pending_payload,
+        uint32_t& pending_size,
+        uint32_t& pending_padding)
 {
+    // Initialize output parameters
+    is_big_submessage = false;
+    pending_payload = nullptr;
+    pending_size = 0;
+    pending_padding = 0;
+
     octet flags = 0x0;
     //Find out flags
     bool dataFlag = false;
@@ -181,7 +194,21 @@ bool RTPSMessageCreator::addSubmessageData(
     //Add Serialized Payload
     if (dataFlag)
     {
-        added_no_error &= CDRMessage::addData(msg, change->serializedPayload.data, change->serializedPayload.length);
+        if (copy_data)
+        {
+            added_no_error &=
+                    CDRMessage::addData(msg, change->serializedPayload.data, change->serializedPayload.length);
+        }
+        else if (msg->pos + change->serializedPayload.length > msg->max_size)
+        {
+            return false;
+        }
+        else
+        {
+            pending_payload = change->serializedPayload.data;
+            pending_size = change->serializedPayload.length;
+            msg->pos += pending_size;
+        }
     }
 
     if (keyFlag)
@@ -206,15 +233,17 @@ bool RTPSMessageCreator::addSubmessageData(
 
     // Align submessage to rtps alignment (4).
     uint32_t align = (4 - msg->pos % 4) & 3;
-    for (uint32_t count = 0; count < align; ++count)
+    if (copy_data)
     {
-        added_no_error &= CDRMessage::addOctet(msg, 0);
+        for (uint32_t count = 0; count < align; ++count)
+        {
+            added_no_error &= CDRMessage::addOctet(msg, 0);
+        }
     }
-
-    //if(align > 0)
+    else
     {
-        //submsgElem.pos += align;
-        //submsgElem.length += align;
+        pending_padding = align;
+        msg->pos += align;
     }
 
     uint32_t size32 = msg->pos - position_size_count_size;
@@ -232,13 +261,18 @@ bool RTPSMessageCreator::addSubmessageData(
             msg->buffer[submessage_size_pos] = *(o + 1);
             msg->buffer[submessage_size_pos + 1] = *(o);
         }
-
-        *is_big_submessage = false;
     }
     else
     {
         // Submessage > 64KB
-        *is_big_submessage = true;
+        is_big_submessage = true;
+    }
+
+    // Rewind position when not copying data
+    if (!copy_data)
+    {
+        msg->pos -= pending_padding;
+        msg->pos -= pending_size;
     }
 
     msg->msg_endian = old_endianess;
@@ -271,8 +305,11 @@ bool RTPSMessageCreator::addMessageDataFrag(
     payload.data = change->serializedPayload.data + fragment_start;
     payload.length = fragment_size;
 
+    octet* pending_payload = nullptr;
+    uint32_t pending_size = 0;
+    uint32_t pending_padding = 0;
     RTPSMessageCreator::addSubmessageDataFrag(msg, change, fragment_number, payload,
-            topicKind, readerId, expectsInlineQos, inlineQos);
+            topicKind, readerId, expectsInlineQos, inlineQos, false, pending_payload, pending_size, pending_padding);
 
     payload.data = NULL;
 
@@ -288,8 +325,17 @@ bool RTPSMessageCreator::addSubmessageDataFrag(
         TopicKind_t topicKind,
         const EntityId_t& readerId,
         bool expectsInlineQos,
-        InlineQosWriter* inlineQos)
+        InlineQosWriter* inlineQos,
+        bool copy_data,
+        octet*& pending_payload,
+        uint32_t& pending_size,
+        uint32_t& pending_padding)
 {
+    // Initialize output parameters
+    pending_payload = nullptr;
+    pending_size = 0;
+    pending_padding = 0;
+
     octet flags = 0x0;
     //Find out flags
     bool keyFlag = false;
@@ -421,7 +467,20 @@ bool RTPSMessageCreator::addSubmessageDataFrag(
     //Add Serialized Payload XXX TODO
     if (!keyFlag) // keyflag = 0 means that the serializedPayload SubmessageElement contains the serialized Data
     {
-        added_no_error &= CDRMessage::addData(msg, payload.data, payload.length);
+        if (copy_data)
+        {
+            added_no_error &= CDRMessage::addData(msg, payload.data, payload.length);
+        }
+        else if (msg->pos + payload.length > msg->max_size)
+        {
+            return false;
+        }
+        else
+        {
+            pending_payload = payload.data;
+            pending_size = payload.length;
+            msg->pos += pending_size;
+        }
     }
     else
     {
@@ -445,9 +504,21 @@ bool RTPSMessageCreator::addSubmessageDataFrag(
     // TODO(Ricardo) This should be on cachechange.
     // Align submessage to rtps alignment (4).
     submessage_size = uint16_t(msg->pos - position_size_count_size);
-    for (; submessage_size& 3; ++submessage_size)
+    for (; 0 != (submessage_size & 3); ++submessage_size)
     {
-        added_no_error &= CDRMessage::addOctet(msg, 0);
+        if (copy_data)
+        {
+            added_no_error &= CDRMessage::addOctet(msg, 0);
+        }
+        else
+        {
+            ++pending_padding;
+        }
+    }
+
+    if (!copy_data)
+    {
+        msg->pos -= pending_size;
     }
 
     //TODO(Ricardo) Improve.

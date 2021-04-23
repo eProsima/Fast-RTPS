@@ -354,13 +354,16 @@ const std::vector<GUID_t>& RTPSWriter::remote_guids() const
 }
 
 bool RTPSWriter::send(
-        CDRMessage_t* message,
+        const RTPSMessageSenderInterface::NetworkBuffer* buffers,
+        size_t num_buffers,
+        uint32_t total_bytes,
         std::chrono::steady_clock::time_point& max_blocking_time_point) const
 {
     RTPSParticipantImpl* participant = getRTPSParticipant();
 
     return locator_selector_.selected_size() == 0 ||
-           participant->sendSync(message, locator_selector_.begin(), locator_selector_.end(), max_blocking_time_point);
+           participant->sendSync(buffers, num_buffers, total_bytes,
+                   locator_selector_.begin(), locator_selector_.end(), max_blocking_time_point);
 }
 
 const LivelinessQosPolicyKind& RTPSWriter::get_liveliness_kind() const
