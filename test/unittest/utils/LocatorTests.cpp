@@ -346,6 +346,128 @@ TEST_F(IPLocatorTests, setIPv6_from_string_invalid)
     ASSERT_FALSE(IPLocator::setIPv4(locator, "::1"));
 }
 
+
+/*
+ * Check isIPv4 method by correct and incorrect IPv4
+ */
+TEST_F(IPLocatorTests, isIPv4)
+{
+    // Not valid strings for IPv4
+    std::vector<std::string> correct_ipv4
+    {
+        "127.0.0.1",
+        "0.0.0.0",
+        "255.255.255.255",
+        "192.168.1.254"
+    };
+
+    for (std::string ipv4 : correct_ipv4)
+    {
+        bool isIPv4_result = IPLocator::isIPv4(ipv4);
+        if (!isIPv4_result)
+        {
+            std::cout << "Error in isIPv4 for case: " << ipv4 << std::endl;
+        }
+        ASSERT_TRUE(isIPv4_result);
+    }
+
+    // Not valid strings for IPv4
+    std::vector<std::string> incorrect_ipv4
+    {
+        "::",
+        "::1",
+        "192.168.1",
+        "192.168.1.256",
+        "www",
+        "www.eprosima.com",
+        "localhost"
+    };
+
+    for (std::string ipv4 : incorrect_ipv4)
+    {
+        bool isIPv4_result = IPLocator::isIPv4(ipv4);
+        if (isIPv4_result)
+        {
+            std::cout << "Error in isIPv4 for case: " << ipv4 << std::endl;
+        }
+        ASSERT_FALSE(isIPv4_result);
+    }
+}
+
+/*
+ * Check isIPv6 method by correct and incorrect IPv6
+ */
+TEST_F(IPLocatorTests, isIPv6)
+{
+    // Not valid strings for IPv6
+    std::vector<std::string> correct_ipv6
+    {
+        "::1",
+        "0:0::0:0001",
+        "0000:0203:0000:0607:0000:0000:0c0d:0000",
+        "0:203:0:607:0:0:c0d:0",
+        "0000:203:0:0607:000:0:c0d:00",
+        "::203:0:607:0:0:c0d:0",
+        "0:203:0:607:0:0:c0d::",
+        "0:203::607:0:0:c0d:0",
+        "0:203:0:607::c0d:0",
+        "0:203:0:607::C0D:0",
+        "::",
+        "::0",
+        "0000000::",
+        "0::0",
+        "0:0:0:0::0:0",
+        "0000::0000",
+        "0000:0000:0000:0000:0000:0000:0000:0000",
+    };
+
+    for (std::string ipv6 : correct_ipv6)
+    {
+        bool isIPv6_result = IPLocator::isIPv6(ipv6);
+        if (!isIPv6_result)
+        {
+            std::cout << "Error in isIPv6 for case: " << ipv6 << std::endl;
+        }
+        ASSERT_TRUE(isIPv6_result);
+    }
+
+    // Not valid strings for IPv6
+    std::vector<std::string> incorrect_ipv6
+    {
+        ":",
+        "::1:",
+        ":1::",
+        "::1::",
+        "1::1::1",
+        "1:::1",
+        "1:1:1:1:1:1:1:1:1",
+        "1:1:1:1:1:1:1::1",
+        "::::",
+        ":1:",
+        ":1:0:0:0:0:0:0",
+        "1:0:0:0:0:0:1:",
+        // "10000::",
+        // "::10000",
+        // "1:10000::1",
+        // "1:10000:0:0:0:0:0:1",
+        // "1::0:10000:0:1",
+        // "1:10::10:1,",
+        "www",
+        "www.eprosima.com",
+        "localhost"
+    };
+
+    for (std::string ipv6 : incorrect_ipv6)
+    {
+        bool isIPv6_result = IPLocator::isIPv6(ipv6);
+        if (isIPv6_result)
+        {
+            std::cout << "Error in isIPv6 for case: " << ipv6 << std::endl;
+        }
+        ASSERT_FALSE(isIPv6_result);
+    }
+}
+
 /*
  * Check to create locator of all kinds
  */
@@ -1652,6 +1774,66 @@ TEST(LocatorListComparisonTests, locatorList_comparison)
     locator_list_2.push_back(locator);
 
     ASSERT_FALSE(locator_list_1 == locator_list_2);
+}
+
+/************
+* DNS Tests *
+************/
+
+/*
+ * Check DNS name resolve function
+ *
+ * Each DNS could resolve each domain with different IPs.
+ * This test creates a set of the possible IPs for each of the domains tried.
+ * In case one of the IPs is correct, the domains is set as found and the test past to it.
+ */
+TEST(LocatorDNSTests, resolve_name)
+{
+    std::map<std::string, std::pair<std::set<std::string>, std::set<std::string>>> addresses =
+        {
+            {"localhost", {{"127.0.0.1"}, {"::1"}}},
+            {"www.eprosima.com", {{"154.56.134.194"}, {}}}, // Only IPv4
+            {"www.google.com", {{"216.58.215.164"}, {"2a00:1450:400e:803::2004"}}},
+            {"www.google.es", {{"142.250.184.3"}, {"2a00:1450:4003:808::2003"}}},
+            {"www.github.com", {{"140.82.121.4", "140.82.121.3"}, {}}},
+            {"docs.ros.org", {{}, {"2605:bc80:3010:104::8cd3:962"}}} // Only IPv6
+        };
+
+    for (auto const& address : addresses)
+    {
+        bool found_at_least_one = false;
+        std::pair<std::set<std::string>, std::set<std::string>> dns_result;
+
+        dns_result = IPLocator::resolveNameDNS(address.first);
+
+        for (auto ipv4 : address.second.first)
+        {
+            if (dns_result.first.find(ipv4) != dns_result.first.end())
+            {
+                found_at_least_one = true;
+                break;
+            }
+        }
+
+        if (!found_at_least_one)
+        {
+            for (auto ipv6 : address.second.second)
+            {
+                if (dns_result.second.find(ipv6) != dns_result.second.end())
+                {
+                    found_at_least_one = true;
+                    break;
+                }
+            }
+        }
+
+        // If it arrives here is that any correct ip has been found for one case
+        if (!found_at_least_one)
+        {
+            std::cout << "IP not found for domain: " << address.first << std::endl;
+        }
+        ASSERT_TRUE(found_at_least_one);
+    }
 }
 
 int main(

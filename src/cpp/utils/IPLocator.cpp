@@ -17,12 +17,20 @@
  *
  */
 
+#include <regex>
+#include <set>
+
+#include <asio.hpp>
+
 #include <fastrtps/utils/IPLocator.h>
 #include <fastrtps/utils/IPFinder.h>
 
 namespace eprosima {
 namespace fastrtps {
 namespace rtps {
+
+const std::regex IPLocator::IPv4_REGEX("^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}"
+        "(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
 
 // Factory
 void IPLocator::createLocator(
@@ -1012,6 +1020,9 @@ bool IPLocator::IPv6isCorrect(
         return false;
     }
 
+    // TODO every number inside must not exceed ffff
+    // TODO do not accept any IPv6 with non valid characters
+
     return true;
 }
 
@@ -1027,6 +1038,71 @@ bool IPLocator::setIPv4address(
     }
     LOCATOR_ADDRESS_INVALID(destlocator.address);
     return false;
+}
+
+std::pair<std::set<std::string>, std::set<std::string>> IPLocator::resolveNameDNS(
+        const std::string& address_name)
+{
+    // TODO
+    // when creating a locator, check if it is IPv4 or IPv6 depending on the kind of Locator
+    // in case it is not, try to resolve the name by DNS (this function)
+
+    // Using code from
+    // https://subscription.packtpub.com/book/application_development/9781783986545/1/ch01lvl1sec13/resolving-a-dns-name
+
+    std::set<std::string> ipv4_results;
+    std::set<std::string> ipv6_results;
+
+    // Create an instance of io service
+    asio::io_service ios;
+
+    //Create a query to make the DNS petition
+    asio::ip::tcp::resolver::query resolver_query(address_name, "", asio::ip::tcp::resolver::query::numeric_service);
+
+    // Create a resolver instance
+    asio::ip::tcp::resolver resolver(ios);
+
+    // Used to store information about error that happens during the resolution process.
+    asio::error_code ec;
+
+    // Make the DNS petition
+    asio::ip::tcp::resolver::iterator it =
+        resolver.resolve(resolver_query, ec);
+
+    // Handling errors if any.
+    if (ec) {
+        // Failed to resolve the DNS name. Breaking execution.
+        logWarning(IP_LOCATOR, "Error " << ec.message() << " when execution the DNS request");
+        return std::make_pair(ipv4_results, ipv6_results);
+    }
+
+    asio::ip::tcp::resolver::iterator end_it;
+    for (; it != end_it; ++it)
+    {
+        logInfo(IP_LOCATOR, "IP " << it->endpoint().address() << " found by DNS request to address " << address_name);
+
+        // Check whether the ip get is v4 or v6
+        if (it->endpoint().address().is_v4())
+        {
+            ipv4_results.insert(it->endpoint().address().to_string());
+        }
+        else
+        {
+            ipv6_results.insert(it->endpoint().address().to_string());
+        }
+    }
+
+    return std::make_pair(ipv4_results, ipv6_results);
+}
+
+bool IPLocator::isIPv4(const std::string& address)
+{
+    return std::regex_match(address, IPLocator::IPv4_REGEX);
+}
+
+bool IPLocator::isIPv6(const std::string& address)
+{
+    return IPLocator::IPv6isCorrect(address);
 }
 
 } // namespace rtps
