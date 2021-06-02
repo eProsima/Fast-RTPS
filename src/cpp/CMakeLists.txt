@@ -452,15 +452,31 @@ elseif(NOT EPROSIMA_INSTALLER)
     # Find out if libatomic link is required in this platform
     find_package(Atomic MODULE)
 
+    if(NOT THIRDPARTY)
+        get_filename_component(TINYXML2_LIB_NAME ${TINYXML2_LIBRARY} NAME)
+        get_filename_component(TINYXML2_LIB_DIR ${TINYXML2_LIBRARY} DIRECTORY)
+    endif()
+
     # Link library to external libraries.
     target_link_libraries(${PROJECT_NAME} ${PRIVACY} fastcdr foonathan_memory
         ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS}
-        ${TINYXML2_LIBRARY}
+        ${TINYXML2_LIB_NAME}
         $<$<BOOL:${LINK_SSL}>:OpenSSL::SSL$<SEMICOLON>OpenSSL::Crypto>
         $<$<BOOL:${WIN32}>:iphlpapi$<SEMICOLON>Shlwapi>
         ${THIRDPARTY_BOOST_LINK_LIBS}
         PRIVATE eProsima_atomic
         )
+
+    if(${CMAKE_VERSION} VERSION_LESS "3.13.0") 
+        message("You are using CMake version lower than 3.13.0. This may cause linking problems when cross-compiling")
+    else()
+        if(TINYXML2_LIB_DIR)
+        target_link_directories(${PROJECT_NAME} BEFORE PRIVATE
+            ${TINYXML2_LIB_DIR}
+        )
+        endif()
+    endif()
+
 
     if(MSVC OR MSVC_IDE)
         set_target_properties(${PROJECT_NAME} PROPERTIES RELEASE_POSTFIX -${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR})
