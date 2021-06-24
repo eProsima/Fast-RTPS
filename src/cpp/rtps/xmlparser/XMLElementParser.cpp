@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+#include <cstdlib>
 #include <cstring>
 #include <regex>
 #include <tinyxml2.h>
@@ -3345,7 +3346,16 @@ XMLP_ret XMLParser::getXMLString(
         logError(XMLPARSER, "<" << elem->Value() << "> getXMLString XML_ERROR!");
         return XMLP_ret::XML_ERROR;
     }
-    *s = text;
+    else if (const char* env_var_value = std::getenv(text))
+    {
+        // If 'text' is an environmental variable, get its value
+        *s = env_var_value;
+    }
+    else
+    {
+        *s = text;
+    }
+
     return XMLP_ret::XML_OK;
 }
 
