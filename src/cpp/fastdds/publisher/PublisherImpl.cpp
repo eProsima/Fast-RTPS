@@ -157,7 +157,7 @@ ReturnCode_t PublisherImpl::set_qos(
     bool enabled = user_publisher_->is_enabled();
 
     const PublisherQos& qos_to_set = (&qos == &PUBLISHER_QOS_DEFAULT) ?
-        participant_->get_default_publisher_qos() : qos;
+            participant_->get_default_publisher_qos() : qos;
 
     if (&qos != &PUBLISHER_QOS_DEFAULT)
     {
@@ -308,21 +308,26 @@ ReturnCode_t PublisherImpl::delete_datawriter(
     {
         return ReturnCode_t::RETCODE_PRECONDITION_NOT_MET;
     }
-    std::lock_guard<std::mutex> lock(mtx_writers_);
+    std::unique_lock<std::mutex> lock(mtx_writers_);
     auto vit = writers_.find(writer->get_topic()->get_name());
     if (vit != writers_.end())
     {
         auto dw_it = std::find(vit->second.begin(), vit->second.end(), writer->impl_);
         if (dw_it != vit->second.end())
         {
-            (*dw_it)->set_listener(nullptr);
-            (*dw_it)->get_topic()->get_impl()->dereference();
-            delete (*dw_it);
+            //First extract the writer from the maps to free the mutex
+            DataWriterImpl* writer_impl = *dw_it;
+            writer_impl->set_listener(nullptr);
             vit->second.erase(dw_it);
             if (vit->second.empty())
             {
                 writers_.erase(vit);
             }
+            lock.unlock();
+
+            //Now we can delete it
+            writer_impl->get_topic()->get_impl()->dereference();
+            delete (writer_impl);
             return ReturnCode_t::RETCODE_OK;
         }
     }

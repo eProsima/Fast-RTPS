@@ -51,9 +51,9 @@ using ParameterList = eprosima::fastdds::dds::ParameterList;
     std::unique_lock<std::recursive_mutex> lock(*((pdp)->getMutex()));    \
     (reader)->getMutex().lock();                                          \
                                                                           \
-    if ((ALIVE != (change)->kind) ||                                     \
-            (seq_num != (change)->sequenceNumber) ||                         \
-            (writer_guid != (change)->writerGUID))                          \
+    if ((ALIVE != (change)->kind) ||                                      \
+            (seq_num != (change)->sequenceNumber) ||                      \
+            (writer_guid != (change)->writerGUID))                        \
     {                                                                     \
         return;                                                           \
     }                                                                     \
@@ -76,7 +76,6 @@ void EDPBasePUBListener::add_writer_from_change(
     if (temp_writer_data_.readFromCDRMessage(&tempMsg, network,
             edp->mp_RTPSParticipant->has_shm_transport()))
     {
-        change->instanceHandle = temp_writer_data_.key();
         if (temp_writer_data_.guid().guidPrefix == edp->mp_RTPSParticipant->getGuid().guidPrefix
                 && !ongoingDeserialization(edp))
         {
@@ -197,7 +196,6 @@ void EDPBaseSUBListener::add_reader_from_change(
     if (temp_reader_data_.readFromCDRMessage(&tempMsg, network,
             edp->mp_RTPSParticipant->has_shm_transport()))
     {
-        change->instanceHandle = temp_reader_data_.key();
         if (temp_reader_data_.guid().guidPrefix == edp->mp_RTPSParticipant->getGuid().guidPrefix
                 && !ongoingDeserialization(edp))
         {
@@ -329,6 +327,6 @@ void EDPSimpleSUBListener::onWriterChangeReceivedByAll(
 
 }
 
-} /* namespace rtps */
-} /* namespace fastrtps */
-} /* namespace eprosima */
+} // namespace rtps
+} // namespace fastrtps
+} // namespace eprosima
