@@ -20,6 +20,7 @@
 #include "../../../src/cpp/rtps/transport/shared_mem/SharedMemSenderResource.hpp"
 #include "../../../src/cpp/rtps/transport/shared_mem/SharedMemManager.hpp"
 #include "../../../src/cpp/rtps/transport/shared_mem/SharedMemGlobal.hpp"
+#include "../../../src/cpp/rtps/transport/shared_mem/SHMLocator.hpp"
 #include "../../../src/cpp/rtps/transport/shared_mem/MultiProducerConsumerRingBuffer.hpp"
 
 #include <string>
@@ -773,14 +774,117 @@ TEST_F(SHMTransportTests, transform_remote_locator_returns_input_locator)
     SharedMemTransport transportUnderTest(descriptor);
     ASSERT_TRUE(transportUnderTest.init());
 
-    Locator_t remote_locator;
-    remote_locator.kind = LOCATOR_KIND_SHM;
-    remote_locator.port = g_default_port;
+    // Check with multicast
+    {
+        // As transform_remote_locator checks if the locator is accessible, it should be previously open
+        Locator_t remote_locator = SHMLocator::create_locator(g_default_port, SHMLocator::Type::MULTICAST);
+        ASSERT_TRUE(transportUnderTest.OpenInputChannel(remote_locator, nullptr, 0xFF));
 
-    // Then
-    Locator_t otherLocator;
-    ASSERT_TRUE(transportUnderTest.transform_remote_locator(remote_locator, otherLocator));
-    ASSERT_EQ(otherLocator, remote_locator);
+        // Then
+        Locator_t otherLocator;
+        ASSERT_TRUE(transportUnderTest.transform_remote_locator(remote_locator, otherLocator));
+        ASSERT_EQ(otherLocator, remote_locator);
+
+        ASSERT_TRUE(transportUnderTest.CloseInputChannel(remote_locator));
+    }
+
+    // Check with unicast
+    {
+        // As transform_remote_locator checks if the locator is accessible, it should be previously open
+        Locator_t remote_locator = SHMLocator::create_locator(g_default_port, SHMLocator::Type::UNICAST);
+        ASSERT_TRUE(transportUnderTest.OpenInputChannel(remote_locator, nullptr, 0xFF));
+
+        // Then
+        Locator_t otherLocator;
+        ASSERT_TRUE(transportUnderTest.transform_remote_locator(remote_locator, otherLocator));
+        ASSERT_EQ(otherLocator, remote_locator);
+
+        ASSERT_TRUE(transportUnderTest.CloseInputChannel(remote_locator));
+    }
+}
+
+TEST_F(SHMTransportTests, transform_remote_locator_fails_on_non_open_channel)
+{
+    // Given
+    SharedMemTransport transportUnderTest(descriptor);
+    ASSERT_TRUE(transportUnderTest.init());
+
+    // Check with multicast
+    {
+        // Given
+        Locator_t remote_locator = SHMLocator::create_locator(g_default_port, SHMLocator::Type::MULTICAST);
+
+        // Then
+        Locator_t otherLocator;
+        ASSERT_FALSE(transportUnderTest.transform_remote_locator(remote_locator, otherLocator));
+    }
+
+    // Check with unicast
+    {
+        // Given
+        Locator_t remote_locator = SHMLocator::create_locator(g_default_port, SHMLocator::Type::UNICAST);
+
+        // Then
+        Locator_t otherLocator;
+        ASSERT_FALSE(transportUnderTest.transform_remote_locator(remote_locator, otherLocator));
+    }
+}
+
+void transform_remote_locator_failures(
+        SharedMemTransport& transportUnderTest,
+        SHMLocator::Type locator_type)
+{
+    // Given
+    Locator_t correct_locator = SHMLocator::create_locator(g_default_port, locator_type);
+    ASSERT_TRUE(transportUnderTest.OpenInputChannel(correct_locator, nullptr, 0xFF));
+
+    Locator_t other_locator;
+    Locator_t remote_locator;
+
+    // Check wrong kind
+    remote_locator = correct_locator;
+    remote_locator.kind = LOCATOR_KIND_INVALID;
+    EXPECT_FALSE(transportUnderTest.transform_remote_locator(remote_locator, other_locator));
+
+    // Check wrong address
+    remote_locator = correct_locator;
+    LOCATOR_ADDRESS_INVALID(remote_locator.address);
+    EXPECT_FALSE(transportUnderTest.transform_remote_locator(remote_locator, other_locator));
+
+    // Check wrong host
+    remote_locator = correct_locator;
+    remote_locator.address[1]++;
+    EXPECT_FALSE(transportUnderTest.transform_remote_locator(remote_locator, other_locator));
+
+    // Check wrong user
+    remote_locator = correct_locator;
+    remote_locator.address[4]++;
+    EXPECT_FALSE(transportUnderTest.transform_remote_locator(remote_locator, other_locator));
+
+    // Check wrong pid
+    remote_locator = correct_locator;
+    remote_locator.address[8]++;
+    EXPECT_FALSE(transportUnderTest.transform_remote_locator(remote_locator, other_locator));
+
+    // Check wrong port
+    remote_locator = correct_locator;
+    remote_locator.port += 1000;
+    EXPECT_FALSE(transportUnderTest.transform_remote_locator(remote_locator, other_locator));
+
+    ASSERT_TRUE(transportUnderTest.CloseInputChannel(correct_locator));
+}
+
+TEST_F(SHMTransportTests, transform_remote_locator_failures)
+{
+    // Given
+    SharedMemTransport transportUnderTest(descriptor);
+    ASSERT_TRUE(transportUnderTest.init());
+
+    // Check with multicast
+    transform_remote_locator_failures(transportUnderTest, SHMLocator::Type::MULTICAST);
+
+    // Check with unicast
+    transform_remote_locator_failures(transportUnderTest, SHMLocator::Type::UNICAST);
 }
 
 TEST_F(SHMTransportTests, all_shared_mem_locators_are_local)
@@ -969,7 +1073,7 @@ TEST_F(SHMTransportTests, port_mutex_deadlock_recover)
 
     port_mocker.remove_port_mutex(domain_name, 0);
 
-    auto global_port = shared_mem_global->open_port(0, 1, 1000);
+    auto global_port = shared_mem_global->open_port(0, 0, 1, 1000);
 
     Semaphore sem_lock_done;
     Semaphore sem_end_thread_locker;
@@ -989,7 +1093,7 @@ TEST_F(SHMTransportTests, port_mutex_deadlock_recover)
     auto port_mutex = port_mocker.get_port_mutex(domain_name, 0);
     ASSERT_FALSE(port_mutex->try_lock());
 
-    auto global_port2 = shared_mem_global->open_port(0, 1, 1000);
+    auto global_port2 = shared_mem_global->open_port(0, 0, 1, 1000);
 
     ASSERT_NO_THROW(global_port2->healthy_check());
 
@@ -1003,14 +1107,14 @@ TEST_F(SHMTransportTests, port_lock_read_exclusive)
 
     auto shared_mem_manager = SharedMemManager::create(domain_name);
 
-    shared_mem_manager->remove_port(0);
+    shared_mem_manager->remove_port(0, 0);
 
-    auto port = shared_mem_manager->open_port(0, 1, 1000, SharedMemGlobal::Port::OpenMode::ReadExclusive);
-    ASSERT_THROW(shared_mem_manager->open_port(0, 1, 1000, SharedMemGlobal::Port::OpenMode::ReadExclusive),
+    auto port = shared_mem_manager->open_port(0, 0, 1, 1000, SharedMemGlobal::Port::OpenMode::ReadExclusive);
+    ASSERT_THROW(shared_mem_manager->open_port(0, 0, 1, 1000, SharedMemGlobal::Port::OpenMode::ReadExclusive),
             std::exception);
 
     port.reset();
-    port = shared_mem_manager->open_port(0, 1, 1000, SharedMemGlobal::Port::OpenMode::ReadExclusive);
+    port = shared_mem_manager->open_port(0, 0, 1, 1000, SharedMemGlobal::Port::OpenMode::ReadExclusive);
 }
 
 TEST_F(SHMTransportTests, robust_exclusive_lock)
@@ -1265,10 +1369,10 @@ TEST_F(SHMTransportTests, port_listener_dead_recover)
     SharedMemGlobal* shared_mem_global = shared_mem_manager->global_segment();
 
     uint32_t listener1_index;
-    auto port1 = shared_mem_global->open_port(0, 1, 1000);
+    auto port1 = shared_mem_global->open_port(0, 0, 1, 1000);
     auto listener1 = port1->create_listener(&listener1_index);
 
-    auto listener2 = shared_mem_manager->open_port(0, 1, 1000)->create_listener();
+    auto listener2 = shared_mem_manager->open_port(0, 0, 1, 1000)->create_listener();
 
     std::atomic<uint32_t> thread_listener2_state(0);
     std::thread thread_listener2([&]
@@ -1294,7 +1398,7 @@ TEST_F(SHMTransportTests, port_listener_dead_recover)
             }
             );
 
-    auto port_sender = shared_mem_manager->open_port(0, 1, 1000, SharedMemGlobal::Port::OpenMode::Write);
+    auto port_sender = shared_mem_manager->open_port(0, 0, 1, 1000, SharedMemGlobal::Port::OpenMode::Write);
     auto segment = shared_mem_manager->create_segment(1024, 16);
     auto buf = segment->alloc_buffer(1, std::chrono::steady_clock::now() + std::chrono::milliseconds(100));
     ASSERT_TRUE(buf != nullptr);
@@ -1352,7 +1456,7 @@ TEST_F(SHMTransportTests, empty_cv_mutex_deadlocked_try_push)
     SharedMemGlobal* shared_mem_global = shared_mem_manager->global_segment();
     MockPortSharedMemGlobal port_mocker;
 
-    auto global_port = shared_mem_global->open_port(0, 1, 1000);
+    auto global_port = shared_mem_global->open_port(0, 0, 1, 1000);
 
     Semaphore sem_lock_done;
     Semaphore sem_end_thread_locker;
@@ -1389,8 +1493,8 @@ TEST_F(SHMTransportTests, dead_listener_sender_port_recover)
     auto shared_mem_manager = SharedMemManager::create(domain_name);
     SharedMemGlobal* shared_mem_global = shared_mem_manager->global_segment();
 
-    shared_mem_global->remove_port(0);
-    auto deadlocked_port = shared_mem_global->open_port(0, 1, 1000);
+    shared_mem_global->remove_port(0, 0);
+    auto deadlocked_port = shared_mem_global->open_port(0, 0, 1, 1000);
     uint32_t listener_index;
     auto deadlocked_listener = deadlocked_port->create_listener(&listener_index);
 
@@ -1408,7 +1512,7 @@ TEST_F(SHMTransportTests, dead_listener_sender_port_recover)
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     // Open the deadlocked port
-    auto port = shared_mem_global->open_port(0, 1, 1000);
+    auto port = shared_mem_global->open_port(0, 0, 1, 1000);
     auto listener = port->create_listener(&listener_index);
     bool listerners_active;
     SharedMemSegment::Id random_id;
@@ -1431,8 +1535,8 @@ TEST_F(SHMTransportTests, port_not_ok_listener_recover)
     auto shared_mem_manager = SharedMemManager::create(domain_name);
     SharedMemGlobal* shared_mem_global = shared_mem_manager->global_segment();
 
-    shared_mem_global->remove_port(0);
-    auto read_port = shared_mem_manager->open_port(0, 1, 1000, SharedMemGlobal::Port::OpenMode::ReadExclusive);
+    shared_mem_global->remove_port(0, 0);
+    auto read_port = shared_mem_manager->open_port(0, 0, 1, 1000, SharedMemGlobal::Port::OpenMode::ReadExclusive);
     auto listener = read_port->create_listener();
 
     std::atomic<uint32_t> stage(0u);
@@ -1449,8 +1553,8 @@ TEST_F(SHMTransportTests, port_not_ok_listener_recover)
             });
 
     // Open the deadlocked port
-    auto port = shared_mem_global->open_port(0, 1, 1000, SharedMemGlobal::Port::OpenMode::Write);
-    auto managed_port = shared_mem_manager->open_port(0, 1, 1000, SharedMemGlobal::Port::OpenMode::Write);
+    auto port = shared_mem_global->open_port(0, 0, 1, 1000, SharedMemGlobal::Port::OpenMode::Write);
+    auto managed_port = shared_mem_manager->open_port(0, 0, 1, 1000, SharedMemGlobal::Port::OpenMode::Write);
     auto data_segment = shared_mem_manager->create_segment(1, 1);
 
     MockPortSharedMemGlobal port_mocker;
@@ -1479,15 +1583,15 @@ TEST_F(SHMTransportTests, buffer_recover)
 
     auto segment = shared_mem_manager->create_segment(3, 3);
 
-    shared_mem_manager->remove_port(1);
-    auto pub_sub1_write = shared_mem_manager->open_port(1, 8, 1000, SharedMemGlobal::Port::OpenMode::Write);
+    shared_mem_manager->remove_port(0, 1);
+    auto pub_sub1_write = shared_mem_manager->open_port(0, 1, 8, 1000, SharedMemGlobal::Port::OpenMode::Write);
 
-    shared_mem_manager->remove_port(2);
-    auto pub_sub2_write = shared_mem_manager->open_port(2, 8, 1000, SharedMemGlobal::Port::OpenMode::Write);
+    shared_mem_manager->remove_port(0, 2);
+    auto pub_sub2_write = shared_mem_manager->open_port(0, 2, 8, 1000, SharedMemGlobal::Port::OpenMode::Write);
 
-    auto sub1_read = shared_mem_manager->open_port(1, 8, 1000, SharedMemGlobal::Port::OpenMode::ReadExclusive);
+    auto sub1_read = shared_mem_manager->open_port(0, 1, 8, 1000, SharedMemGlobal::Port::OpenMode::ReadExclusive);
 
-    auto sub2_read = shared_mem_manager->open_port(2, 8, 1000, SharedMemGlobal::Port::OpenMode::ReadExclusive);
+    auto sub2_read = shared_mem_manager->open_port(0, 2, 8, 1000, SharedMemGlobal::Port::OpenMode::ReadExclusive);
 
     bool exit_listeners = false;
 
@@ -1636,7 +1740,7 @@ TEST_F(SHMTransportTests, remote_segments_free)
     {
         managers.push_back(SharedMemManager::create(domain_name));
         segments.push_back(managers.back()->create_segment(16u, 1u));
-        ports.push_back(managers.back()->open_port(i, num_participants, 1000));
+        ports.push_back(managers.back()->open_port(0, i, num_participants, 1000));
         listeners.push_back(ports.back()->create_listener());
     }
 

@@ -312,6 +312,7 @@ SharedMemChannelResource* SharedMemTransport::CreateInputChannelResource(
 
     return new SharedMemChannelResource(
         shared_mem_manager_->open_port(
+            SHMLocator::get_pid_from_address(locator),
             locator.port,
             configuration_.port_queue_capacity(),
             configuration_.healthy_check_timeout_ms(),
@@ -376,14 +377,25 @@ bool SharedMemTransport::transform_remote_locator(
         const Locator& remote_locator,
         Locator& result_locator) const
 {
-    if (IsLocatorSupported(remote_locator))
+    if (!SHMLocator::is_shm_and_from_this_host(remote_locator))
     {
-        result_locator = remote_locator;
-
-        return true;
+        return false;
     }
 
-    return false;
+    if (SystemInfo::instance().user_id() != SHMLocator::get_user_from_address(remote_locator))
+    {
+        logWarning(RTPS_TRANSPORT_SHM, "Ignoring SHM locator from different user");
+        return false;
+    }
+
+    if (!can_write_to_port(remote_locator.port, SHMLocator::get_pid_from_address(remote_locator)))
+    {
+        logWarning(RTPS_TRANSPORT_SHM, "Cannot write to remote SHM locator, ignoring");
+        return false;
+    }
+
+    result_locator = remote_locator;
+    return true;
 }
 
 std::shared_ptr<SharedMemManager::Buffer> SharedMemTransport::copy_to_shared_buffer(
@@ -460,8 +472,24 @@ bool SharedMemTransport::send(
 
 }
 
+bool SharedMemTransport::can_write_to_port(
+        uint32_t port_id,
+        uint32_t address_id) const
+{
+    auto ports_it = opened_ports_.find(port_id);
+
+    // The port is already opened
+    if (ports_it != opened_ports_.end())
+    {
+        return true;
+    }
+
+    return shared_mem_manager_->can_write_to_port(address_id, port_id);
+}
+
 std::shared_ptr<SharedMemManager::Port> SharedMemTransport::find_port(
-        uint32_t port_id)
+        uint32_t port_id,
+        uint32_t address_id)
 {
     auto ports_it = opened_ports_.find(port_id);
 
@@ -472,8 +500,9 @@ std::shared_ptr<SharedMemManager::Port> SharedMemTransport::find_port(
     }
 
     // The port is not opened
-    std::shared_ptr<SharedMemManager::Port> port = shared_mem_manager_->
-                    open_port(port_id, configuration_.port_queue_capacity(), configuration_.healthy_check_timeout_ms(),
+    std::shared_ptr<SharedMemManager::Port> port =
+            shared_mem_manager_->open_port(address_id, port_id,
+                    configuration_.port_queue_capacity(), configuration_.healthy_check_timeout_ms(),
                     SharedMemGlobal::Port::OpenMode::Write);
 
     opened_ports_[port_id] = port;
@@ -487,7 +516,7 @@ bool SharedMemTransport::push_discard(
 {
     try
     {
-        if (!find_port(remote_locator.port)->try_push(buffer))
+        if (!find_port(remote_locator.port, SHMLocator::get_pid_from_address(remote_locator))->try_push(buffer))
         {
             logInfo(RTPS_MSG_OUT, "Port " << remote_locator.port << " full. Buffer dropped");
         }

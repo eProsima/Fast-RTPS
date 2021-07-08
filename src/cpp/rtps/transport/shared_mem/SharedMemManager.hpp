@@ -715,8 +715,7 @@ public:
 
                     // TODO(Adolfo) : Dynamic allocation. Use foonathan to convert it to static allocation
                     buffer_ref = std::make_shared<SharedMemBuffer>(segment, buffer_descriptor.source_segment_id,
-                                    buffer_node,
-                                    buffer_descriptor.validity_id);
+                                    buffer_node, buffer_descriptor.validity_id);
 
                     // If the cell has been read by all listeners
                     global_port_->pop(*global_listener_, was_cell_freed);
@@ -754,8 +753,8 @@ public:
                 }
                 else
                 {
-                    logWarning(RTPS_TRANSPORT_SHM, "SHM Listener on port " << global_port_->port_id() << " failure: "
-                                                                           << e.what());
+                    logWarning(RTPS_TRANSPORT_SHM,
+                            "SHM Listener on port " << global_port_->port_id() << " failure: " << e.what());
 
                     regenerate_port();
                 }
@@ -887,7 +886,7 @@ public:
         void recover_blocked_processing()
         {
             SharedMemGlobal::BufferDescriptor buffer_descriptor;
-            if (SharedMemGlobal::Port::is_zombie(global_port_->port_id(),
+            if (SharedMemGlobal::Port::is_zombie(global_port_->address_id(), global_port_->port_id(),
                     shared_mem_manager_->global_segment()->domain_name()))
             {
                 while (global_port_->get_and_remove_blocked_processing(buffer_descriptor))
@@ -961,14 +960,28 @@ public:
         return allocation_extra_size;
     }
 
+    /**
+     * Checks if a port can be open for writing.
+     * @param port_id The identifier of the port to check.
+     * @return whether the port can be written or not.
+     */
+    bool can_write_to_port(
+            uint32_t address_id,
+            uint32_t port_id) const
+    {
+        return global_segment_.can_write_to_port(address_id, port_id);
+    }
+
     std::shared_ptr<Port> open_port(
+            uint32_t address_id,
             uint32_t port_id,
             uint32_t max_descriptors,
             uint32_t healthy_check_timeout_ms,
             SharedMemGlobal::Port::OpenMode open_mode = SharedMemGlobal::Port::OpenMode::ReadShared)
     {
         return std::make_shared<Port>(this,
-                       global_segment_.open_port(port_id, max_descriptors, healthy_check_timeout_ms, open_mode),
+                       global_segment_.open_port(address_id, port_id, max_descriptors,
+                       healthy_check_timeout_ms, open_mode),
                        open_mode);
     }
 
@@ -976,9 +989,10 @@ public:
      * Remove a port from the system.
      */
     void remove_port(
+            uint32_t address_id,
             uint32_t port_id)
     {
-        global_segment_.remove_port(port_id);
+        global_segment_.remove_port(address_id, port_id);
     }
 
     /**

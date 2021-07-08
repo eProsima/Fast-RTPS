@@ -15,6 +15,7 @@
 #include <rtps/transport/shared_mem/test_SharedMemTransport.h>
 #include <rtps/transport/shared_mem/test_SharedMemChannelResource.hpp>
 #include <rtps/transport/shared_mem/SharedMemManager.hpp>
+#include <rtps/transport/shared_mem/SHMLocator.hpp>
 
 namespace eprosima {
 namespace fastdds {
@@ -77,6 +78,7 @@ SharedMemChannelResource* test_SharedMemTransport::CreateInputChannelResource(
 
     return new test_SharedMemChannelResource(
         shared_mem_manager_->open_port(
+            SHMLocator::get_pid_from_address(locator),
             locator.port,
             configuration()->port_queue_capacity(),
             configuration()->healthy_check_timeout_ms(),

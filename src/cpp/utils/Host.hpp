@@ -22,6 +22,8 @@
 
 #include <fastdds/dds/log/Log.hpp>
 
+#include <asio/ip/host_name.hpp>
+
 namespace eprosima {
 
 /**
@@ -64,29 +66,25 @@ private:
 
     Host()
     {
+        asio::error_code ec;
+        auto host_name = asio::ip::host_name(ec);
+
         // Compute the host id
         fastdds::rtps::LocatorList loc;
         fastrtps::rtps::IPFinder::getIP4Address(&loc);
 
         {
-            if (loc.size() > 0)
+            MD5 md5;
+            md5.update(host_name.c_str(), static_cast<MD5::size_type>(host_name.length()));
+            for (auto& l : loc)
             {
-                MD5 md5;
-                for (auto& l : loc)
-                {
-                    md5.update(l.address, sizeof(l.address));
-                }
-                md5.finalize();
-                id_ = 0;
-                for (size_t i = 0; i < sizeof(md5.digest); i += 2)
-                {
-                    id_ ^= ((md5.digest[i] << 8) | md5.digest[i + 1]);
-                }
+                md5.update(l.address, sizeof(l.address));
             }
-            else
+            md5.finalize();
+            id_ = 0;
+            for (size_t i = 0; i < sizeof(md5.digest); i += 2)
             {
-                reinterpret_cast<uint8_t*>(&id_)[0] = 127;
-                reinterpret_cast<uint8_t*>(&id_)[1] = 1;
+                id_ ^= ((md5.digest[i] << 8) | md5.digest[i + 1]);
             }
         }
 
@@ -96,6 +94,7 @@ private:
                 macs.size() > 0)
         {
             MD5 md5;
+            md5.update(host_name.c_str(), static_cast<MD5::size_type>(host_name.length()));
             for (auto& m : macs)
             {
                 md5.update(m.address, sizeof(m.address));

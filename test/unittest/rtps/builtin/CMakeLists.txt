@@ -70,6 +70,9 @@ if(NOT ((MSVC OR MSVC_IDE) AND EPROSIMA_INSTALLER))
 
         add_executable(BuiltinDataSerializationTests ${BUILTIN_DATA_SERIALIZATION_TESTS_SOURCE})
         target_compile_definitions(BuiltinDataSerializationTests PRIVATE FASTRTPS_NO_LIB
+            BOOST_ASIO_STANDALONE
+            ASIO_STANDALONE
+            ASIO_DISABLE_VISIBILITY
             $<$<AND:$<NOT:$<BOOL:${WIN32}>>,$<STREQUAL:"${CMAKE_BUILD_TYPE}","Debug">>:__DEBUG>
             $<$<BOOL:${INTERNAL_DEBUG}>:__INTERNALDEBUG> # Internal debug activated.
             )
@@ -78,6 +81,7 @@ if(NOT ((MSVC OR MSVC_IDE) AND EPROSIMA_INSTALLER))
             ${PROJECT_SOURCE_DIR}/test/mock/rtps/NetworkFactory
             ${PROJECT_SOURCE_DIR}/include ${PROJECT_BINARY_DIR}/include
             ${PROJECT_SOURCE_DIR}/src/cpp
+            ${Asio_INCLUDE_DIR}
             )
         target_link_libraries(BuiltinDataSerializationTests foonathan_memory
             ${GTEST_LIBRARIES} ${GMOCK_LIBRARIES}

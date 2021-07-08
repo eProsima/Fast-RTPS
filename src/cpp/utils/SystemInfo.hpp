@@ -18,10 +18,13 @@
 #if defined(_WIN32)
 #include <process.h>
 #else
+#include <sys/types.h>
 #include <unistd.h>
 #endif // if defined(_WIN32)
 
 #include <cstdint>
+#include <limits>
+#include <random>
 
 #include <fastrtps/types/TypesBase.h>
 #include <utils/Host.hpp>
@@ -53,6 +56,11 @@ public:
 #endif // platform selection
     }
 
+    inline uint32_t unique_process_id() const
+    {
+        return unique_process_id_;
+    }
+
     /**
      * Get the identifier of the current host.
      *
@@ -61,6 +69,11 @@ public:
     inline uint16_t host_id() const
     {
         return Host::instance().id();
+    }
+
+    inline uint16_t user_id() const
+    {
+        return user_id_;
     }
 
     /**
@@ -118,7 +131,48 @@ public:
 
 private:
 
-    SystemInfo() = default;
+    SystemInfo()
+    {
+        create_unique_process_id();
+        get_user_id();
+    }
+
+    void get_user_id()
+    {
+#if defined(_WIN32)
+        user_id_ = 0;
+#else  // ^^^ defined(_WIN32) / !defined(_WIN32) vvv
+        user_id_ = geteuid();
+#endif  // !defined(_WIN32)
+    }
+
+    void create_unique_process_id()
+    {
+        // Generate a 4 bytes unique identifier that would be the same across all participants on the same process.
+        // This will be used on the GuidPrefix of the participants, as well as on the SHM transport unicast locators.
+
+        // Even though using the process id here might seem a nice idea, there are cases where it might not serve as
+        // unique identifier of the process:
+        // - One of them is when using a Kubernetes pod on which several containers with their own PID namespace are
+        //   created.
+        // - Another one is when a system in which a Fast DDS application is started during boot time. If the system
+        //   crashes and is then re-started, it may happen that the participant may be considered an old one if the
+        //   announcement lease duration did not expire.
+        // In order to behave correctly in those situations, we will use the 16 least-significant bits of the PID,
+        // along with a random 16 bits value. This should not be a problem, as the PID is known to be 16 bits long on
+        // several systems. On those where it is longer, using the 16 least-significant ones along with a random value
+        // should still give enough uniqueness for our use cases.
+        int pid = process_id();
+
+        std::random_device generator;
+        std::uniform_int_distribution<uint16_t> distribution(0, (std::numeric_limits<uint16_t>::max)());
+        uint16_t rand_value = distribution(generator);
+
+        unique_process_id_ = (static_cast<uint32_t>(rand_value) << 16) | static_cast<uint32_t>(pid & 0xFFFF);
+    }
+
+    uint32_t unique_process_id_;
+    uint16_t user_id_;
 
 };
 

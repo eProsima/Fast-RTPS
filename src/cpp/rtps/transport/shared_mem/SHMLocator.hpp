@@ -16,7 +16,8 @@
 #define _FASTDDS_SHMLOCATOR_H_
 
 #include <fastdds/rtps/common/Locator.h>
-#include <utils/Host.hpp>
+
+#include <utils/SystemInfo.hpp>
 
 namespace eprosima {
 namespace fastdds {
@@ -47,15 +48,44 @@ public:
     {
         using namespace fastrtps::rtps;
 
-        Locator_t locator(LOCATOR_KIND_SHM, port);
+        Locator locator(LOCATOR_KIND_SHM, port);
 
         locator.get_address()[0] = (type == Type::UNICAST) ? 'U' : 'M';
 
-        auto host_id = Host::instance().id();
-        locator.get_address()[1] = octet(host_id);
-        locator.get_address()[2] = octet(host_id >> 8);
+        auto host_address = SystemInfo::instance().host_id();
+        locator.get_address()[1] = octet(host_address);
+        locator.get_address()[2] = octet(host_address >> 8);
+
+        auto user_address = SystemInfo::instance().user_id();
+        locator.get_address()[4] = octet(user_address);
+        locator.get_address()[5] = octet(user_address >> 8);
+
+        if (type == Type::UNICAST)
+        {
+            uint32_t pid_address = SystemInfo::instance().unique_process_id();
+            locator.get_address()[8] = octet(pid_address);
+            locator.get_address()[9] = octet(pid_address >> 8);
+            locator.get_address()[10] = octet(pid_address >> 16);
+            locator.get_address()[11] = octet(pid_address >> 24);
+        }
 
         return locator;
+    }
+
+    static uint16_t get_user_from_address(
+            const Locator& locator)
+    {
+        return static_cast<uint16_t>(locator.address[4]) |
+               (static_cast<uint16_t>(locator.address[5]) << 8);
+    }
+
+    static uint32_t get_pid_from_address(
+            const Locator& locator)
+    {
+        return static_cast<uint32_t>(locator.address[8]) |
+               (static_cast<uint32_t>(locator.address[9]) << 8) |
+               (static_cast<uint32_t>(locator.address[10]) << 16) |
+               (static_cast<uint32_t>(locator.address[11]) << 24);
     }
 
     /**
@@ -68,9 +98,10 @@ public:
     {
         using namespace fastrtps::rtps;
 
-        if (locator.kind == LOCATOR_KIND_SHM)
+        if ((locator.kind == LOCATOR_KIND_SHM) &&
+                (('U' == locator.address[0]) || ('M' == locator.address[0])))
         {
-            auto host_id = Host::instance().id();
+            auto host_id = SystemInfo::instance().host_id();
 
             return locator.address[1] == octet(host_id) && locator.address[2] == octet(host_id >> 8);
         }

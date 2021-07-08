@@ -246,8 +246,13 @@ private:
             const std::shared_ptr<SharedMemManager::Buffer>& buffer,
             const Locator& remote_locator);
 
+    bool can_write_to_port(
+            uint32_t port_id,
+            uint32_t address_id) const;
+
     std::shared_ptr<SharedMemManager::Port> find_port(
-            uint32_t port_id);
+            uint32_t port_id,
+            uint32_t address_id);
 
     bool push_discard(
             const std::shared_ptr<SharedMemManager::Buffer>& buffer,

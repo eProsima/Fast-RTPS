@@ -19,10 +19,6 @@
 #ifndef RTPS_COMMON_GUIDUTILS_HPP_
 #define RTPS_COMMON_GUIDUTILS_HPP_
 
-#include <cstdint>
-#include <limits>
-#include <random>
-
 #include <fastdds/rtps/common/GuidPrefix_t.hpp>
 #include <fastdds/rtps/common/VendorId_t.hpp>
 
@@ -87,26 +83,11 @@ private:
         prefix_.value[3] = static_cast<octet>((host_id >> 8) & 0xFF);
 
         // On Fast DDS, next four bytes would be the same across all participants on the same process.
-        // Even though using the process id here might seem a nice idea, there are cases where it might not serve as
-        // unique identifier of the process:
-        // - One of them is when using a Kubernetes pod on which several containers with their own PID namespace are
-        //   created.
-        // - Another one is when a system in which a Fast DDS application is started during boot time. If the system
-        //   crashes and is then re-started, it may happen that the participant may be considered an old one if the
-        //   announcement lease duration did not expire.
-        // In order to behave correctly in those situations, we will use the 16 least-significant bits of the PID,
-        // along with a random 16 bits value. This should not be a problem, as the PID is known to be 16 bits long on
-        // several systems. On those where it is longer, using the 16 least-significant ones along with a random value
-        // should still give enough uniqueness for our use cases.
-        int pid = SystemInfo::instance().process_id();
+        uint32_t pid = SystemInfo::instance().unique_process_id();
         prefix_.value[4] = static_cast<octet>(pid & 0xFF);
         prefix_.value[5] = static_cast<octet>((pid >> 8) & 0xFF);
-
-        std::random_device generator;
-        std::uniform_int_distribution<uint16_t> distribution(0, std::numeric_limits<uint16_t>::max());
-        uint16_t rand_value = distribution(generator);
-        prefix_.value[6] = static_cast<octet>(rand_value & 0xFF);
-        prefix_.value[7] = static_cast<octet>((rand_value >> 8) & 0xFF);
+        prefix_.value[6] = static_cast<octet>((pid >> 16) & 0xFF);
+        prefix_.value[7] = static_cast<octet>((pid >> 24) & 0xFF);
     }
 
     GuidPrefix_t prefix_;

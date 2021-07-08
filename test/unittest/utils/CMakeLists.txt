@@ -122,9 +122,17 @@ if(NOT ((MSVC OR MSVC_IDE) AND EPROSIMA_INSTALLER))
         add_gtest(FixedSizeQueueTests SOURCES ${FIXEDSIZEQUEUETESTS_SOURCE})
 
         add_executable(SystemInfoTests ${SYSTEMINFOTESTS_SOURCE})
-        target_compile_definitions(SystemInfoTests PRIVATE FASTRTPS_NO_LIB)
+        target_compile_definitions(SystemInfoTests PRIVATE FASTRTPS_NO_LIB
+            BOOST_ASIO_STANDALONE
+            ASIO_STANDALONE
+            ASIO_DISABLE_VISIBILITY
+            )
         target_include_directories(SystemInfoTests PRIVATE ${GTEST_INCLUDE_DIRS}
-            ${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/src/cpp ${PROJECT_BINARY_DIR}/include)
+            ${PROJECT_SOURCE_DIR}/include
+            ${PROJECT_SOURCE_DIR}/src/cpp
+            ${PROJECT_BINARY_DIR}/include
+            ${Asio_INCLUDE_DIR}
+            )
         target_link_libraries(SystemInfoTests ${GTEST_LIBRARIES})
         add_gtest(SystemInfoTests SOURCES ${SYSTEMINFOTESTS_SOURCE})
 
