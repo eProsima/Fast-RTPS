@@ -31,6 +31,7 @@ namespace rtps {
 
 const std::regex IPLocator::IPv4_REGEX("^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}"
         "(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
+const std::regex IPLocator::IPv6_QUARTET_REGEX("^(?:[A-Fa-f0-9]){0,4}$");
 
 // Factory
 void IPLocator::createLocator(
@@ -1020,8 +1021,32 @@ bool IPLocator::IPv6isCorrect(
         return false;
     }
 
-    // TODO every number inside must not exceed ffff
-    // TODO do not accept any IPv6 with non valid characters
+    // every number inside must not exceed ffff
+    // do not accept any IPv6 with non valid characters
+    // also, IPv6 addresses may have the interface ID added as in 'fe80::92f0:f536:e3cc:11c6%wlp2s0'
+    std::string::size_type pos;
+    pos = ipv6.find('%');
+    std::string address = ipv6.substr(0, pos);
+    std::stringstream s(address);
+
+    // If we counted X ':', we have to process X+1 quartets
+    while (count-- >= 0)
+    {
+        std::stringbuf sb_value;
+        char punct;
+        s.get(sb_value, ':');
+        if (!std::regex_match(sb_value.str(), IPLocator::IPv6_QUARTET_REGEX))
+        {
+            return false;
+        }
+        if (sb_value.str().empty())
+        {
+            // If nothing was copied to the output (for example, with '::'), failbit is set
+            s.clear();
+        }
+        // Get ':'
+        s >> punct;
+    }
 
     return true;
 }
@@ -1043,10 +1068,6 @@ bool IPLocator::setIPv4address(
 std::pair<std::set<std::string>, std::set<std::string>> IPLocator::resolveNameDNS(
         const std::string& address_name)
 {
-    // TODO
-    // when creating a locator, check if it is IPv4 or IPv6 depending on the kind of Locator
-    // in case it is not, try to resolve the name by DNS (this function)
-
     // Using code from
     // https://subscription.packtpub.com/book/application_development/9781783986545/1/ch01lvl1sec13/resolving-a-dns-name
 

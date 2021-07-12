@@ -291,6 +291,7 @@ private:
     ~IPLocator() = delete;
 
     static const std::regex IPv4_REGEX;
+    static const std::regex IPv6_QUARTET_REGEX;
 };
 
 } // namespace rtps
