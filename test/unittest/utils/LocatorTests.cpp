@@ -184,7 +184,6 @@ TEST_F(IPLocatorTests, setIPv6_from_string_empty)
     {
         "::",
         "::0",
-        "0000000::",
         "0::0",
         "0:0:0:0::0:0",
         "0000::0000",
@@ -414,7 +413,6 @@ TEST_F(IPLocatorTests, isIPv6)
         "0:203:0:607::C0D:0",
         "::",
         "::0",
-        "0000000::",
         "0::0",
         "0:0:0:0::0:0",
         "0000::0000",
@@ -446,12 +444,18 @@ TEST_F(IPLocatorTests, isIPv6)
         ":1:",
         ":1:0:0:0:0:0:0",
         "1:0:0:0:0:0:1:",
-        // "10000::",
-        // "::10000",
-        // "1:10000::1",
-        // "1:10000:0:0:0:0:0:1",
-        // "1::0:10000:0:1",
-        // "1:10::10:1,",
+        "0000000::",
+        "10000::",
+        "::10000",
+        "1:10000::1",
+        "1:10000:0:0:0:0:0:1",
+        "1::0:10000:0:1",
+        "ABZ::",
+        "::ABZ",
+        "1:ABZ::1",
+        "1:ABZ:0:0:0:0:0:1",
+        "1::0:ABZ:0:1",
+        "1:10::10:1,",
         "www",
         "www.eprosima.com",
         "localhost"
@@ -464,7 +468,7 @@ TEST_F(IPLocatorTests, isIPv6)
         {
             std::cout << "Error in isIPv6 for case: " << ipv6 << std::endl;
         }
-        ASSERT_FALSE(isIPv6_result);
+        EXPECT_FALSE(isIPv6_result);
     }
 }
 
@@ -1832,7 +1836,47 @@ TEST(LocatorDNSTests, resolve_name)
         {
             std::cout << "IP not found for domain: " << address.first << std::endl;
         }
-        ASSERT_TRUE(found_at_least_one);
+        EXPECT_TRUE(found_at_least_one);
+    }
+}
+
+/*
+    This test uses the DNS and IPs onf the `resolve_name` test
+    to check that the locators are correctly formed
+*/
+TEST(LocatorDNSTests, dns_locator)
+{
+    std::map<std::string, std::string> dns_locator_to_address =
+        {
+            {"IPv4:[localhost]:1024", "127.0.0.1"},
+            {"IPv6:[localhost]:1024", "::1"},
+            {"IPv4:[www.eprosima.com]:1024", "154.56.134.194"},
+            {"IPv6:[www.eprosima.com]:1024", ""},   //invalid locator
+            {"IPv4:[www.eprosima.com]:1024", "154.56.134.194"},
+            {"IPv6:[www.eprosima.com]:1024", ""},   // invalid locator
+            {"IPv4:[www.google.com]:1024", "216.58.215.164"},
+            {"IPv6:[www.google.com]:1024", "2a00:1450:400e:803::2004"},
+            {"IPv4:[www.google.es]:1024", "142.250.184.3"},
+            {"IPv6:[www.google.es]:1024", "2a00:1450:4003:808::2003"},
+            {"IPv4:[docs.ros.org]:1024", ""},   // invalid locator
+            {"IPv6:[docs.ros.org]:1024", "2605:bc80:3010:104::8cd3:962"}
+        };
+
+    for (auto const& dns : dns_locator_to_address)
+    {
+        std::stringstream ss_dns(dns.first);
+        Locator_t locator;
+        ss_dns >> locator;
+        if (dns.second.empty())
+        {
+            EXPECT_EQ(LOCATOR_KIND_INVALID, locator.kind);
+        }
+        else
+        {
+            std::stringstream ss_locator;
+            ss_locator << locator;
+            EXPECT_EQ(dns.second, ss_locator.str());
+        }
     }
 }
 
