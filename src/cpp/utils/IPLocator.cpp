@@ -29,9 +29,9 @@ namespace eprosima {
 namespace fastrtps {
 namespace rtps {
 
-const std::regex IPLocator::IPv4_REGEX("^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}"
+const std::regex IPv4_REGEX("^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}"
         "(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
-const std::regex IPLocator::IPv6_QUARTET_REGEX("^(?:[A-Fa-f0-9]){0,4}$");
+const std::regex IPv6_QUARTET_REGEX("^(?:[A-Fa-f0-9]){0,4}$");
 
 // Factory
 void IPLocator::createLocator(
@@ -1035,7 +1035,7 @@ bool IPLocator::IPv6isCorrect(
         std::stringbuf sb_value;
         char punct;
         s.get(sb_value, ':');
-        if (!std::regex_match(sb_value.str(), IPLocator::IPv6_QUARTET_REGEX))
+        if (!std::regex_match(sb_value.str(), IPv6_QUARTET_REGEX))
         {
             return false;
         }
@@ -1088,10 +1088,11 @@ std::pair<std::set<std::string>, std::set<std::string>> IPLocator::resolveNameDN
 
     // Make the DNS petition
     asio::ip::tcp::resolver::iterator it =
-        resolver.resolve(resolver_query, ec);
+            resolver.resolve(resolver_query, ec);
 
     // Handling errors if any.
-    if (ec) {
+    if (ec)
+    {
         // Failed to resolve the DNS name. Breaking execution.
         logWarning(IP_LOCATOR, "Error " << ec.message() << " when execution the DNS request");
         return std::make_pair(ipv4_results, ipv6_results);
@@ -1116,12 +1117,14 @@ std::pair<std::set<std::string>, std::set<std::string>> IPLocator::resolveNameDN
     return std::make_pair(ipv4_results, ipv6_results);
 }
 
-bool IPLocator::isIPv4(const std::string& address)
+bool IPLocator::isIPv4(
+        const std::string& address)
 {
-    return std::regex_match(address, IPLocator::IPv4_REGEX);
+    return std::regex_match(address, IPv4_REGEX);
 }
 
-bool IPLocator::isIPv6(const std::string& address)
+bool IPLocator::isIPv6(
+        const std::string& address)
 {
     return IPLocator::IPv6isCorrect(address);
 }

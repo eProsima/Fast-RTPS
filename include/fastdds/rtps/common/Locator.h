@@ -348,7 +348,7 @@ inline std::istream& operator >>(
 
             // check if this is a valid IPv4 or IPv6 and call DNS if not
             if ((kind == LOCATOR_KIND_UDPv4 || kind == LOCATOR_KIND_TCPv4) &&
-                !IPLocator::isIPv4(address))
+                    !IPLocator::isIPv4(address))
             {
                 auto addresses = IPLocator::resolveNameDNS(address);
                 if (addresses.first.empty())
@@ -360,10 +360,10 @@ inline std::istream& operator >>(
                 address = *addresses.first.begin();
             }
             if ((kind == LOCATOR_KIND_UDPv6 || kind == LOCATOR_KIND_TCPv6) &&
-                !IPLocator::isIPv6(address))
+                    !IPLocator::isIPv6(address))
             {
-               auto addresses = IPLocator::resolveNameDNS(address);
-               if (addresses.first.empty())
+                auto addresses = IPLocator::resolveNameDNS(address);
+                if (addresses.second.empty())
                 {
                     loc.kind = LOCATOR_KIND_INVALID;
                     logWarning(LOCATOR, "Error deserializing Locator");

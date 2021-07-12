@@ -265,9 +265,11 @@ public:
             const std::string& address_name);
 
     //! Check whether a string contains an IPv4 format
-    RTPS_DllAPI static bool isIPv4(const std::string& address);
+    RTPS_DllAPI static bool isIPv4(
+            const std::string& address);
     //! Check whether a string contains an IPv6 format
-    RTPS_DllAPI static bool isIPv6(const std::string& address);
+    RTPS_DllAPI static bool isIPv6(
+            const std::string& address);
 
 protected:
 
@@ -289,9 +291,6 @@ private:
 
     IPLocator() = delete;
     ~IPLocator() = delete;
-
-    static const std::regex IPv4_REGEX;
-    static const std::regex IPv6_QUARTET_REGEX;
 };
 
 } // namespace rtps

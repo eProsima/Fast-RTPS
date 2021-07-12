@@ -351,7 +351,7 @@ TEST_F(IPLocatorTests, setIPv6_from_string_invalid)
  */
 TEST_F(IPLocatorTests, isIPv4)
 {
-    // Not valid strings for IPv4
+    // Valid strings for IPv4
     std::vector<std::string> correct_ipv4
     {
         "127.0.0.1",
@@ -360,14 +360,10 @@ TEST_F(IPLocatorTests, isIPv4)
         "192.168.1.254"
     };
 
-    for (std::string ipv4 : correct_ipv4)
+    for (const std::string& ipv4 : correct_ipv4)
     {
         bool isIPv4_result = IPLocator::isIPv4(ipv4);
-        if (!isIPv4_result)
-        {
-            std::cout << "Error in isIPv4 for case: " << ipv4 << std::endl;
-        }
-        ASSERT_TRUE(isIPv4_result);
+        EXPECT_TRUE(isIPv4_result) << "Error in isIPv4 for case: " << ipv4;
     }
 
     // Not valid strings for IPv4
@@ -382,14 +378,10 @@ TEST_F(IPLocatorTests, isIPv4)
         "localhost"
     };
 
-    for (std::string ipv4 : incorrect_ipv4)
+    for (const std::string ipv4& : incorrect_ipv4)
     {
         bool isIPv4_result = IPLocator::isIPv4(ipv4);
-        if (isIPv4_result)
-        {
-            std::cout << "Error in isIPv4 for case: " << ipv4 << std::endl;
-        }
-        ASSERT_FALSE(isIPv4_result);
+        EXPECT_FALSE(isIPv4_result) << "Error in isIPv4 for case: " << ipv4;
     }
 }
 
@@ -398,7 +390,7 @@ TEST_F(IPLocatorTests, isIPv4)
  */
 TEST_F(IPLocatorTests, isIPv6)
 {
-    // Not valid strings for IPv6
+    // Valid strings for IPv6
     std::vector<std::string> correct_ipv6
     {
         "::1",
@@ -417,16 +409,28 @@ TEST_F(IPLocatorTests, isIPv6)
         "0:0:0:0::0:0",
         "0000::0000",
         "0000:0000:0000:0000:0000:0000:0000:0000",
+        "::1%interface",
+        "0:0::0:0001%interface",
+        "0000:0203:0000:0607:0000:0000:0c0d:0000%interface",
+        "0:203:0:607:0:0:c0d:0%interface",
+        "0000:203:0:0607:000:0:c0d:00%interface",
+        "::203:0:607:0:0:c0d:0%interface",
+        "0:203:0:607:0:0:c0d::%interface",
+        "0:203::607:0:0:c0d:0%interface",
+        "0:203:0:607::c0d:0%interface",
+        "0:203:0:607::C0D:0%interface",
+        "::%interface",
+        "::0%interface",
+        "0::0%interface",
+        "0:0:0:0::0:0%interface",
+        "0000::0000%interface",
+        "0000:0000:0000:0000:0000:0000:0000:0000%interface",
     };
 
-    for (std::string ipv6 : correct_ipv6)
+    for (const std::string& ipv6 : correct_ipv6)
     {
         bool isIPv6_result = IPLocator::isIPv6(ipv6);
-        if (!isIPv6_result)
-        {
-            std::cout << "Error in isIPv6 for case: " << ipv6 << std::endl;
-        }
-        ASSERT_TRUE(isIPv6_result);
+        EXPECT_TRUE(isIPv6_result) << "Error in isIPv6 for case: " << ipv6;
     }
 
     // Not valid strings for IPv6
@@ -461,14 +465,10 @@ TEST_F(IPLocatorTests, isIPv6)
         "localhost"
     };
 
-    for (std::string ipv6 : incorrect_ipv6)
+    for (const std::string& ipv6 : incorrect_ipv6)
     {
         bool isIPv6_result = IPLocator::isIPv6(ipv6);
-        if (isIPv6_result)
-        {
-            std::cout << "Error in isIPv6 for case: " << ipv6 << std::endl;
-        }
-        EXPECT_FALSE(isIPv6_result);
+        EXPECT_FALSE(isIPv6_result) << "Error in isIPv6 for case: " << ipv6;
     }
 }
 
@@ -1794,14 +1794,14 @@ TEST(LocatorListComparisonTests, locatorList_comparison)
 TEST(LocatorDNSTests, resolve_name)
 {
     std::map<std::string, std::pair<std::set<std::string>, std::set<std::string>>> addresses =
-        {
-            {"localhost", {{"127.0.0.1"}, {"::1"}}},
-            {"www.eprosima.com", {{"154.56.134.194"}, {}}}, // Only IPv4
-            {"www.google.com", {{"216.58.215.164"}, {"2a00:1450:400e:803::2004"}}},
-            {"www.google.es", {{"142.250.184.3"}, {"2a00:1450:4003:808::2003"}}},
-            {"www.github.com", {{"140.82.121.4", "140.82.121.3"}, {}}},
-            {"docs.ros.org", {{}, {"2605:bc80:3010:104::8cd3:962"}}} // Only IPv6
-        };
+    {
+        {"localhost", {{"127.0.0.1"}, {"::1"}}},
+        {"www.eprosima.com", {{"154.56.134.194"}, {}}},     // Only IPv4
+        {"www.google.com", {{"216.58.215.164"}, {"2a00:1450:400e:803::2004"}}},
+        {"www.google.es", {{"142.250.184.3"}, {"2a00:1450:4003:808::2003"}}},
+        {"www.github.com", {{"140.82.121.4", "140.82.121.3"}, {}}},
+        {"docs.ros.org", {{}, {"2605:bc80:3010:104::8cd3:962"}}}     // Only IPv6
+    };
 
     for (auto const& address : addresses)
     {
@@ -1841,26 +1841,26 @@ TEST(LocatorDNSTests, resolve_name)
 }
 
 /*
-    This test uses the DNS and IPs onf the `resolve_name` test
+    This test uses the DNS and IPs of the `resolve_name` test
     to check that the locators are correctly formed
-*/
+ */
 TEST(LocatorDNSTests, dns_locator)
 {
     std::map<std::string, std::string> dns_locator_to_address =
-        {
-            {"IPv4:[localhost]:1024", "127.0.0.1"},
-            {"IPv6:[localhost]:1024", "::1"},
-            {"IPv4:[www.eprosima.com]:1024", "154.56.134.194"},
-            {"IPv6:[www.eprosima.com]:1024", ""},   //invalid locator
-            {"IPv4:[www.eprosima.com]:1024", "154.56.134.194"},
-            {"IPv6:[www.eprosima.com]:1024", ""},   // invalid locator
-            {"IPv4:[www.google.com]:1024", "216.58.215.164"},
-            {"IPv6:[www.google.com]:1024", "2a00:1450:400e:803::2004"},
-            {"IPv4:[www.google.es]:1024", "142.250.184.3"},
-            {"IPv6:[www.google.es]:1024", "2a00:1450:4003:808::2003"},
-            {"IPv4:[docs.ros.org]:1024", ""},   // invalid locator
-            {"IPv6:[docs.ros.org]:1024", "2605:bc80:3010:104::8cd3:962"}
-        };
+    {
+        {"IPv4:[localhost]:1024", "127.0.0.1"},
+        {"IPv6:[localhost]:1024", "::1"},
+        {"IPv4:[www.eprosima.com]:1024", "154.56.134.194"},
+        {"IPv6:[www.eprosima.com]:1024", ""},       //invalid locator
+        {"IPv4:[www.eprosima.com]:1024", "154.56.134.194"},
+        {"IPv6:[www.eprosima.com]:1024", ""},       // invalid locator
+        {"IPv4:[www.google.com]:1024", "216.58.215.164"},
+        {"IPv6:[www.google.com]:1024", "2a00:1450:400e:803::2004"},
+        {"IPv4:[www.google.es]:1024", "142.250.184.3"},
+        {"IPv6:[www.google.es]:1024", "2a00:1450:4003:808::2003"},
+        {"IPv4:[docs.ros.org]:1024", ""},       // invalid locator
+        {"IPv6:[docs.ros.org]:1024", "2605:bc80:3010:104::8cd3:962"}
+    };
 
     for (auto const& dns : dns_locator_to_address)
     {
