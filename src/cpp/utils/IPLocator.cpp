@@ -973,6 +973,11 @@ bool IPLocator::isEmpty(
 bool IPLocator::IPv6isCorrect(
         const std::string& ipv6)
 {
+    // IPv6 addresses may have the interface ID added as in 'fe80::92f0:f536:e3cc:11c6%wlp2s0'
+    std::string::size_type pos;
+    pos = ipv6.find('%');
+    std::string address = ipv6.substr(0, pos);
+
     /* An incorrect IPv6 format could be because:
      *  1. it has not ':' - bad format
      *  2. it has just one ':' - not enough info
@@ -982,7 +987,7 @@ bool IPLocator::IPv6isCorrect(
      *  6. it starts with ':' - it must be doble ("::") - bad format
      *  7. it ends with ':' - it must be doble ("::") - bad format
      * */
-    std::ptrdiff_t count = std::count_if( ipv6.begin(), ipv6.end(), []( char c )
+    std::ptrdiff_t count = std::count_if( address.begin(), address.end(), []( char c )
                     {
                         return c == ':';
                     });
@@ -994,39 +999,35 @@ bool IPLocator::IPv6isCorrect(
     }
 
     // only case of 8 : is with a :: at the beginning or end
-    if (count == 8 && (ipv6.front() != ':' && ipv6.back() != ':'))
+    if (count == 8 && (address.front() != ':' && address.back() != ':'))
     {
         return false;
     }
 
     // only one :: is allowed
-    size_t ind = ipv6.find("::");
+    size_t ind = address.find("::");
     if (ind != std::string::npos)
     {
-        if (ipv6.find("::", ind + 1) != std::string::npos)
+        if (address.find("::", ind + 1) != std::string::npos)
         {
             return false;
         }
     }
 
     // does not start with only one ':'
-    if (ipv6.front() == ':' && ipv6.at(1) != ':')
+    if (address.front() == ':' && address.at(1) != ':')
     {
         return false;
     }
 
     // does not end with only one ':'
-    if (ipv6.back() == ':' && ipv6.at(ipv6.size() - 2) != ':')
+    if (address.back() == ':' && address.at(address.size() - 2) != ':')
     {
         return false;
     }
 
     // every number inside must not exceed ffff
     // do not accept any IPv6 with non valid characters
-    // also, IPv6 addresses may have the interface ID added as in 'fe80::92f0:f536:e3cc:11c6%wlp2s0'
-    std::string::size_type pos;
-    pos = ipv6.find('%');
-    std::string address = ipv6.substr(0, pos);
     std::stringstream s(address);
 
     // If we counted X ':', we have to process X+1 quartets
