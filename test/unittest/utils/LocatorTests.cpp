@@ -363,7 +363,7 @@ TEST_F(IPLocatorTests, isIPv4)
     for (const std::string& ipv4 : correct_ipv4)
     {
         bool isIPv4_result = IPLocator::isIPv4(ipv4);
-        EXPECT_TRUE(isIPv4_result) << "Error in isIPv4 for case: " << ipv4;
+        EXPECT_TRUE(isIPv4_result) << "Unexpected negative in isIPv4 for case: " << ipv4;
     }
 
     // Not valid strings for IPv4
@@ -378,10 +378,10 @@ TEST_F(IPLocatorTests, isIPv4)
         "localhost"
     };
 
-    for (const std::string ipv4& : incorrect_ipv4)
+    for (const std::string& ipv4 : incorrect_ipv4)
     {
         bool isIPv4_result = IPLocator::isIPv4(ipv4);
-        EXPECT_FALSE(isIPv4_result) << "Error in isIPv4 for case: " << ipv4;
+        EXPECT_FALSE(isIPv4_result) << "Unexpected positive in isIPv4 for case: " << ipv4;
     }
 }
 
@@ -430,7 +430,7 @@ TEST_F(IPLocatorTests, isIPv6)
     for (const std::string& ipv6 : correct_ipv6)
     {
         bool isIPv6_result = IPLocator::isIPv6(ipv6);
-        EXPECT_TRUE(isIPv6_result) << "Error in isIPv6 for case: " << ipv6;
+        EXPECT_TRUE(isIPv6_result) << "Unexpected negative in isIPv6 for case: " << ipv6;
     }
 
     // Not valid strings for IPv6
@@ -468,7 +468,7 @@ TEST_F(IPLocatorTests, isIPv6)
     for (const std::string& ipv6 : incorrect_ipv6)
     {
         bool isIPv6_result = IPLocator::isIPv6(ipv6);
-        EXPECT_FALSE(isIPv6_result) << "Error in isIPv6 for case: " << ipv6;
+        EXPECT_FALSE(isIPv6_result) << "Unexpected positive in isIPv6 for case: " << ipv6;
     }
 }
 
@@ -1832,11 +1832,7 @@ TEST(LocatorDNSTests, resolve_name)
         }
 
         // If it arrives here is that any correct ip has been found for one case
-        if (!found_at_least_one)
-        {
-            std::cout << "IP not found for domain: " << address.first << std::endl;
-        }
-        EXPECT_TRUE(found_at_least_one);
+        EXPECT_TRUE(found_at_least_one) << "IP not found for domain: " << address.first;
     }
 }
 
