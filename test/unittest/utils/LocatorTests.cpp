@@ -1784,6 +1784,15 @@ TEST(LocatorListComparisonTests, locatorList_comparison)
 * DNS Tests *
 ************/
 
+static const std::map<std::string, std::pair<std::set<std::string>, std::set<std::string>>> addresses =
+    {
+        {"localhost.test", {{"127.0.0.1"}, {"::1"}}},
+        {"www.eprosima.com.test", {{"154.56.134.194"}, {}}},     // Only IPv4
+        {"www.acme.com.test", {{"216.58.215.164"}, {"2a00:1450:400e:803::2004"}}},
+        {"www.foo.com.test", {{"140.82.121.4", "140.82.121.3"}, {}}},
+        {"acme.org.test", {{}, {"2605:bc80:3010:104::8cd3:962"}}}     // Only IPv6
+    };
+
 /*
  * Check DNS name resolve function
  *
@@ -1793,16 +1802,6 @@ TEST(LocatorListComparisonTests, locatorList_comparison)
  */
 TEST(LocatorDNSTests, resolve_name)
 {
-    std::map<std::string, std::pair<std::set<std::string>, std::set<std::string>>> addresses =
-    {
-        {"localhost", {{"127.0.0.1"}, {"::1"}}},
-        {"www.eprosima.com", {{"154.56.134.194"}, {}}},     // Only IPv4
-        {"www.google.com", {{"216.58.215.164"}, {"2a00:1450:400e:803::2004"}}},
-        {"www.google.es", {{"142.250.184.3"}, {"2a00:1450:4003:808::2003"}}},
-        {"www.github.com", {{"140.82.121.4", "140.82.121.3"}, {}}},
-        {"docs.ros.org", {{}, {"2605:bc80:3010:104::8cd3:962"}}}     // Only IPv6
-    };
-
     for (auto const& address : addresses)
     {
         bool found_at_least_one = false;
@@ -1842,37 +1841,51 @@ TEST(LocatorDNSTests, resolve_name)
  */
 TEST(LocatorDNSTests, dns_locator)
 {
-    std::map<std::string, std::string> dns_locator_to_address =
-    {
-        {"IPv4:[localhost]:1024", "127.0.0.1"},
-        {"IPv6:[localhost]:1024", "::1"},
-        {"IPv4:[www.eprosima.com]:1024", "154.56.134.194"},
-        {"IPv6:[www.eprosima.com]:1024", ""},       //invalid locator
-        {"IPv4:[www.eprosima.com]:1024", "154.56.134.194"},
-        {"IPv6:[www.eprosima.com]:1024", ""},       // invalid locator
-        {"IPv4:[www.google.com]:1024", "216.58.215.164"},
-        {"IPv6:[www.google.com]:1024", "2a00:1450:400e:803::2004"},
-        {"IPv4:[www.google.es]:1024", "142.250.184.3"},
-        {"IPv6:[www.google.es]:1024", "2a00:1450:4003:808::2003"},
-        {"IPv4:[docs.ros.org]:1024", ""},       // invalid locator
-        {"IPv6:[docs.ros.org]:1024", "2605:bc80:3010:104::8cd3:962"}
-    };
+    auto checker = [](
+            int32_t kind,
+            const std::string& dns,
+            const std::string& ip)
+        {
+            std::string type;
+            if (kind == LOCATOR_KIND_TCPv4)
+            {
+                type = "TCPv4";
+            }
+            else if (kind == LOCATOR_KIND_TCPv6)
+            {
+                type = "TCPv6";
+            }
+            else
+            {
+                FAIL() << "Unsupported locator kind for this tests";
+            }
 
-    for (auto const& dns : dns_locator_to_address)
+            std::stringstream ss_dns;
+            ss_dns << type << ":[" << dns << "]:1024";
+            Locator_t locator;
+            ss_dns >> locator;
+            if (ip.empty())
+            {
+                EXPECT_EQ(LOCATOR_KIND_INVALID, locator.kind) << "Invalid kind " << locator.kind
+                        << " for locator " << ss_dns.str();
+            }
+            else
+            {
+                std::stringstream ss_address;
+                ss_address << type << ":[" << ip << "]:1024";
+                std::stringstream ss_locator;
+                ss_locator << locator;
+                EXPECT_EQ(ss_address.str(), ss_locator.str()) << "Wrong translation " << ss_locator.str()
+                        << " for locator " << ss_dns.str();
+            }
+        };
+
+    for (auto const& address : addresses)
     {
-        std::stringstream ss_dns(dns.first);
-        Locator_t locator;
-        ss_dns >> locator;
-        if (dns.second.empty())
-        {
-            EXPECT_EQ(LOCATOR_KIND_INVALID, locator.kind);
-        }
-        else
-        {
-            std::stringstream ss_locator;
-            ss_locator << locator;
-            EXPECT_EQ(dns.second, ss_locator.str());
-        }
+        checker(LOCATOR_KIND_TCPv4, address.first,
+                address.second.first.empty() ? "" : *address.second.first.begin());
+        checker(LOCATOR_KIND_TCPv6, address.first,
+                address.second.second.empty() ? "" : *address.second.second.begin());
     }
 }
 
