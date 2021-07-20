@@ -127,36 +127,14 @@ History::iterator ReaderHistory::remove_change_nts(
 bool ReaderHistory::remove_changes_with_guid(
         const GUID_t& a_guid)
 {
-    std::vector<CacheChange_t*> changes_to_remove;
-
-    if (mp_reader == nullptr || mp_mutex == nullptr)
+    if (mp_reader == nullptr)
     {
-        logError(RTPS_READER_HISTORY, "You need to create a Reader with History before removing any changes");
+        logError(RTPS_READER_HISTORY, "ReaderHistory must be linked with a Reader before any removal");
         return false;
     }
 
-    {
-        //Lock scope
-        std::lock_guard<RecursiveTimedMutex> guard(*mp_mutex);
-        for (std::vector<CacheChange_t*>::iterator chit = m_changes.begin(); chit != m_changes.end(); ++chit)
-        {
-            if ((*chit)->writerGUID == a_guid)
-            {
-                changes_to_remove.push_back((*chit));
-            }
-        }
-    }//End lock scope
-
-    for (std::vector<CacheChange_t*>::iterator chit = changes_to_remove.begin(); chit != changes_to_remove.end();
-            ++chit)
-    {
-        if (!remove_change(*chit))
-        {
-            logError(RTPS_READER_HISTORY, "One of the cachechanged in the GUID removal bulk could not be removed");
-            return false;
-        }
-    }
-    return true;
+    // actual removal on base class
+    return History::remove_changes_with_guid(a_guid);
 }
 
 bool ReaderHistory::remove_fragmented_changes_until(

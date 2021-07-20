@@ -50,7 +50,7 @@ public:
      */
     RTPS_DllAPI ReaderHistory(
             const HistoryAttributes& att);
-    RTPS_DllAPI virtual ~ReaderHistory() override;
+    RTPS_DllAPI ~ReaderHistory() override;
 
     /**
      * Virtual method that is called when a new change is received.
@@ -100,8 +100,8 @@ public:
      * @param a_guid Pointer to the target guid to search for.
      * @return True if successful, even if no changes have been removed.
      * */
-    RTPS_DllAPI bool remove_changes_with_guid(
-            const GUID_t& a_guid);
+    bool remove_changes_with_guid(
+            const GUID_t& a_guid) override;
 
     /**
      * Remove all fragmented changes from certain writer up to certain sequence number.

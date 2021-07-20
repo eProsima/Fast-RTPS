@@ -61,7 +61,7 @@ public:
             uint32_t payloadMax,
             rtps::MemoryManagementPolicy_t mempolicy);
 
-    virtual ~SubscriberHistory();
+    ~SubscriberHistory() override;
 
     /**
      * Called when a change is received by the Subscriber. Will add the change to the history.
@@ -72,7 +72,7 @@ public:
      */
     bool received_change(
             rtps::CacheChange_t* change,
-            size_t unknown_missing_changes_up_to);
+            size_t unknown_missing_changes_up_to) override;
 
     /** @name Read or take data methods.
      * Methods to read or take data from the History.
@@ -100,6 +100,14 @@ public:
      */
     bool get_first_untaken_info(
             SampleInfo_t* info);
+
+    /**
+     * Remove all changes from the History that have a certain guid.
+     * @param a_guid Pointer to the target guid to search for.
+     * @return True if successful, even if no changes have been removed.
+     * */
+    bool remove_changes_with_guid(
+            const fastrtps::rtps::GUID_t& a_guid) override;
 
     /**
      * This method is called to remove a change from the SubscriberHistory.

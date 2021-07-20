@@ -113,6 +113,32 @@ bool History::remove_change(
     return true;
 }
 
+bool History::remove_changes_with_guid(
+        const GUID_t& a_guid)
+{
+    if (mp_mutex == nullptr)
+    {
+        logError(RTPS_HISTORY, "History needs proper initialization before any removal");
+        return false;
+    }
+
+    //Lock scope
+    std::lock_guard<RecursiveTimedMutex> guard(*mp_mutex);
+    for (std::vector<CacheChange_t*>::iterator chit = m_changes.begin(); chit != m_changes.end();)
+    {
+        if ((*chit)->writerGUID == a_guid)
+        {
+            chit = remove_change_nts(chit);
+        }
+        else
+        {
+            ++chit;
+        }
+    }
+
+    return true;
+}
+
 bool History::remove_all_changes()
 {
     if (mp_mutex == nullptr)

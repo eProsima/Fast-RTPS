@@ -1,6 +1,8 @@
 Forthcoming
 -----------
 
+* Promoted `eProsima::fastrtps::SubscriberHistory::remove_changes_with_guid` to virtual method (ABI break)
+
 Version 2.3.0
 -------------
 

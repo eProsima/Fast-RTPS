@@ -160,6 +160,14 @@ public:
             CacheChange_t* ch);
 
     /**
+     * Remove all changes from the History that have a certain guid.
+     * @param a_guid Pointer to the target guid to search for.
+     * @return True if successful, even if no changes have been removed.
+     * */
+    RTPS_DllAPI virtual bool remove_changes_with_guid(
+            const GUID_t& a_guid);
+
+    /**
      * Find a specific change in the history using the matches_change method criteria.
      * @param ch Pointer to the CacheChange_t to search for.
      * @return an iterator if a suitable change is found

@@ -1749,6 +1749,67 @@ TEST_F(DataReaderTests, get_listening_locators)
     EXPECT_TRUE(multicast_found);
 }
 
+/*
+ * Issue https://github.com/eProsima/Fast-DDS/issues/2044 highlighted that a DataWriter removal may left DataReaders
+ * Histories in an invalid state. DataWriter removal triggers the clean up of any related sample in DataReader's
+ * History. Because the key related internal state was not updated and kept sample dangling references.
+ * */
+
+TEST_F(DataReaderTests, check_key_history_wholesomeness_on_unmatch)
+{
+    // handle_ok_ (1)
+    create_instance_handles();
+
+    // Set up entities
+    DataReaderQos reader_qos = DATAREADER_QOS_DEFAULT;
+    reader_qos.reliability().kind = RELIABLE_RELIABILITY_QOS;
+    reader_qos.history().kind = KEEP_ALL_HISTORY_QOS;
+
+    DataWriterQos writer_qos = DATAWRITER_QOS_DEFAULT;
+    writer_qos.reliability().kind = RELIABLE_RELIABILITY_QOS;
+    writer_qos.history().kind = KEEP_ALL_HISTORY_QOS;
+
+    // defaults to footopic using type FooType
+    create_entities(
+        nullptr,
+        reader_qos,
+        SUBSCRIBER_QOS_DEFAULT,
+        writer_qos);
+
+    // add a key sample
+    FooType sample;
+    std::array<char, 256> msg = {"checking robustness"};
+
+    sample.index(1);
+    sample.message(msg);
+
+    ASSERT_TRUE(data_writer_->write(&sample));
+
+    // wait till the DataReader receives the data
+    ASSERT_TRUE(data_reader_->wait_for_unread_message(Duration_t(3, 0)));
+
+    // now the writer is removed
+    ASSERT_EQ(publisher_->delete_datawriter(data_writer_), ReturnCode_t::RETCODE_OK);
+    data_writer_ = nullptr;
+
+    // here the DataReader History state must be coherent and don't loop endlessly
+    ReturnCode_t res;
+    std::thread query([this, &res]()
+            {
+                FooSeq samples;
+                SampleInfoSeq infos;
+
+                res = data_reader_->take_instance(samples, infos, LENGTH_UNLIMITED, handle_ok_);
+            });
+
+    // Check if the thread hangs
+    // wait for termination
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    // check expected result, if query thread hangs res = ReturnCode_t::RETCODE_OK
+    ASSERT_EQ(res, ReturnCode_t::RETCODE_BAD_PARAMETER);
+    query.join();
+}
+
 class DataReaderUnsupportedTests : public ::testing::Test
 {
 public:

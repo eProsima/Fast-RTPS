@@ -46,6 +46,10 @@ public:
     {
     }
 
+    virtual ~ReaderHistory()
+    {
+    }
+
     // *INDENT-OFF* Uncrustify makes a mess with MOCK_METHOD macros
     MOCK_METHOD1(remove_change_mock, bool(CacheChange_t*));
 
@@ -74,6 +78,19 @@ public:
         bool ret = remove_change_mock(change);
         delete change;
         return ret;
+    }
+
+    virtual bool remove_changes_with_guid(
+            const GUID_t& )
+    {
+        return true;
+    }
+
+    virtual bool received_change(
+            CacheChange_t*,
+            size_t)
+    {
+        return true;
     }
 
     inline RecursiveTimedMutex* getMutex()

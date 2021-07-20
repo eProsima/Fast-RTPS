@@ -26,6 +26,7 @@
 #include <fastdds/dds/topic/TopicDataType.hpp>
 #include <fastdds/dds/log/Log.hpp>
 
+#include <algorithm>
 #include <limits>
 #include <mutex>
 
@@ -510,6 +511,30 @@ bool SubscriberHistory::remove_change_sub(
     }
 
     return false;
+}
+
+bool SubscriberHistory::remove_changes_with_guid(
+        const GUID_t& a_guid)
+{
+    std::lock_guard<RecursiveTimedMutex> guard(*mp_mutex);
+
+    // clean this class related data
+    for ( auto mit = keyed_changes_.begin(); mit != keyed_changes_.end(); ++mit)
+    {
+        auto& caches = mit->second.cache_changes;
+        caches.erase(
+            std::remove_if(
+                caches.begin(),
+                caches.end(),
+                [&a_guid](CacheChange_t const* const pSample) -> bool
+                {
+                    return pSample->writerGUID == a_guid;
+                }),
+            caches.end());
+    }
+
+    // clean base class related data
+    return ReaderHistory::remove_changes_with_guid(a_guid);
 }
 
 bool SubscriberHistory::remove_change_sub(
