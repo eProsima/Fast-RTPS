@@ -6,7 +6,7 @@ on:
 jobs:
   mirror_job:
     runs-on: ubuntu-latest
-    name: Mirror master branch to 2.3.x branch
+    name: Mirror master branch to 2.4.x branch
     steps:
     - name: Mirror action step
       id: mirror
@@ -14,4 +14,4 @@ jobs:
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         source: 'master'
-        dest: '2.3.x'
+        dest: '2.4.x'
