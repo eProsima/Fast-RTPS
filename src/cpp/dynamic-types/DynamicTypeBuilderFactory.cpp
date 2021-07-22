@@ -1880,7 +1880,7 @@ void DynamicTypeBuilderFactory::build_union_type_code(
         object.complete().union_type().discriminator().common().member_flags().IS_DEFAULT(false);
 
         // Apply annotations
-        apply_type_annotations(object.complete().struct_type().header().detail().ann_custom(), descriptor);
+        apply_type_annotations(object.complete().union_type().header().detail().ann_custom(), descriptor);
 
         TypeObject discObj;
         build_type_object(descriptor->discriminator_type_->descriptor_, discObj);
