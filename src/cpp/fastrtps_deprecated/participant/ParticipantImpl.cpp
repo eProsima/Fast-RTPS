@@ -179,6 +179,7 @@ Publisher* ParticipantImpl::createPublisher(
     watt.mode = att.qos.m_publishMode.kind ==
             eprosima::fastrtps::SYNCHRONOUS_PUBLISH_MODE ? SYNCHRONOUS_WRITER : ASYNCHRONOUS_WRITER;
     watt.endpoint.properties = att.properties;
+    watt.flow_controller_name = att.qos.m_publishMode.flow_controller_name;
     if (att.getEntityID() > 0)
     {
         watt.endpoint.setEntityID((uint8_t)att.getEntityID());

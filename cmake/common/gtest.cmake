@@ -56,13 +56,15 @@ macro(add_gtest)
         endif()
 
         foreach(GTEST_SOURCE_FILE ${GTEST_SOURCES})
-            file(STRINGS ${GTEST_SOURCE_FILE} GTEST_TEST_NAMES REGEX ^TEST)
+            # Normal tests
+            file(STRINGS ${GTEST_SOURCE_FILE} GTEST_TEST_NAMES REGEX "^([T][Y][P][E][D][_])?TEST")
             foreach(GTEST_TEST_NAME ${GTEST_TEST_NAMES})
                 string(REGEX REPLACE ["\) \(,"] ";" GTEST_TEST_NAME ${GTEST_TEST_NAME})
                 list(GET GTEST_TEST_NAME 1 GTEST_GROUP_NAME)
                 list(GET GTEST_TEST_NAME 3 GTEST_TEST_NAME)
                 add_test(NAME ${GTEST_GROUP_NAME}.${GTEST_TEST_NAME}
-                    COMMAND ${command} --gtest_filter=${GTEST_GROUP_NAME}.${GTEST_TEST_NAME}:*/${GTEST_GROUP_NAME}.${GTEST_TEST_NAME}/*)
+                    COMMAND ${command}
+                    --gtest_filter=${GTEST_GROUP_NAME}.${GTEST_TEST_NAME}:*/${GTEST_GROUP_NAME}.${GTEST_TEST_NAME}/*:${GTEST_GROUP_NAME}/*.${GTEST_TEST_NAME})
 
                 # Add environment
                 set(GTEST_ENVIRONMENT "")
@@ -84,6 +86,7 @@ macro(add_gtest)
                 set_property(TEST ${GTEST_GROUP_NAME}.${GTEST_TEST_NAME} PROPERTY LABELS "${GTEST_LABELS}")
 
             endforeach()
+
         endforeach()
     else()
         add_test(NAME ${test} COMMAND ${command})

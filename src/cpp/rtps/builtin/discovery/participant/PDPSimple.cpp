@@ -30,7 +30,6 @@
 
 #include <fastdds/rtps/participant/RTPSParticipantListener.h>
 #include <fastdds/rtps/writer/StatelessWriter.h>
-#include <fastdds/rtps/resources/AsyncWriterThread.h>
 
 #include <fastdds/rtps/reader/StatelessReader.h>
 #include <fastdds/rtps/reader/StatefulReader.h>
@@ -381,6 +380,17 @@ void PDPSimple::assignRemoteEndpoints(
         temp_reader_data_.m_qos.m_reliability.kind = BEST_EFFORT_RELIABILITY_QOS;
         temp_reader_data_.m_qos.m_durability.kind = TRANSIENT_LOCAL_DURABILITY_QOS;
         mp_PDPWriter->matched_reader_add(temp_reader_data_);
+
+        StatelessWriter* pW = dynamic_cast<StatelessWriter*>(mp_PDPWriter);
+
+        if (pW != nullptr)
+        {
+            pW->unsent_changes_reset();
+        }
+        else
+        {
+            logError(RTPS_PDP, "Using PDPSimple protocol with a reliable writer");
+        }
     }
 
 #if HAVE_SECURITY

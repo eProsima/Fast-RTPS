@@ -502,13 +502,13 @@ void WriterProxy::perform_initial_ack_nack() const
     }
     else
     {
-        reader_->send_acknack(this, sns, *this, false);
+        reader_->send_acknack(this, sns, this, false);
     }
 }
 
 void WriterProxy::perform_heartbeat_response() const
 {
-    reader_->send_acknack(this, *this, heartbeat_final_flag_.load());
+    reader_->send_acknack(this, this, heartbeat_final_flag_.load());
 }
 
 bool WriterProxy::process_heartbeat(
@@ -579,7 +579,7 @@ void WriterProxy::update_heartbeat_response_interval(
 
 bool WriterProxy::send(
         CDRMessage_t* message,
-        std::chrono::steady_clock::time_point& max_blocking_time_point) const
+        std::chrono::steady_clock::time_point max_blocking_time_point) const
 {
     if (is_on_same_process_)
     {

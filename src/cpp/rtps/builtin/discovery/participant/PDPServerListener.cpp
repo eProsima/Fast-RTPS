@@ -106,6 +106,10 @@ void PDPServerListener::onNewCacheChangeAdded(
         change->write_params.related_sample_identity(change->write_params.sample_identity());
     }
 
+    // Reset the internal CacheChange_t union.
+    change->writer_info.next = nullptr;
+    change->writer_info.previous = nullptr;
+    change->writer_info.num_sent_submessages = 0;
 
     // DATA(p) case
     if (change->kind == ALIVE)

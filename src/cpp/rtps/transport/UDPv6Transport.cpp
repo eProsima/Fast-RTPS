@@ -557,6 +557,14 @@ void UDPv6Transport::SetSocketOutboundInterface(
         eProsimaUDPSocket& socket,
         const std::string& sIp)
 {
+#ifdef __APPLE__
+    Locator loc;
+    IPLocator::createLocator(LOCATOR_KIND_UDPv6, sIp, 0, loc);
+    if (IPLocator::isLocal(loc))
+    {
+        return;
+    }
+#endif // ifdef __APPLE__
     getSocketPtr(socket)->set_option(ip::multicast::outbound_interface(
                 asio::ip::address_v6::from_string(sIp).scope_id()));
 }

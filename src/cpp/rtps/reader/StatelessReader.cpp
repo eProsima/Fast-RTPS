@@ -246,7 +246,7 @@ bool StatelessReader::change_received(
         {
             auto payload_length = change->serializedPayload.length;
 
-            Time_t::now(change->receptionTimestamp);
+            Time_t::now(change->reader_info.receptionTimestamp);
             update_last_notified(change->writerGUID, change->sequenceNumber);
             ++total_unread_;
 

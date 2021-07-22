@@ -101,7 +101,7 @@ void CacheChangePool::return_cache_to_pool(
     ch->isRead = 0;
     ch->sourceTimestamp.seconds(0);
     ch->sourceTimestamp.fraction(0);
-    ch->num_sent_submessages = 0;
+    ch->writer_info.num_sent_submessages = 0;
     ch->setFragmentSize(0);
     free_caches_.push_back(ch);
 }

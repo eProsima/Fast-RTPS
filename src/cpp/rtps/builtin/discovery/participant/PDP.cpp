@@ -32,8 +32,6 @@
 #include <fastdds/rtps/builtin/discovery/endpoint/EDPSimple.h>
 #include <fastdds/rtps/builtin/discovery/endpoint/EDPStatic.h>
 
-#include <fastdds/rtps/resources/AsyncWriterThread.h>
-
 #include <rtps/participant/RTPSParticipantImpl.h>
 
 #include <fastdds/rtps/writer/StatelessWriter.h>

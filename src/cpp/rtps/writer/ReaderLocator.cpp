@@ -22,7 +22,6 @@
 #include <fastdds/rtps/common/CacheChange.h>
 #include <fastdds/rtps/common/LocatorListComparisons.hpp>
 #include <fastdds/rtps/reader/RTPSReader.h>
-#include <fastdds/rtps/resources/AsyncWriterThread.h>
 
 #include <rtps/participant/RTPSParticipantImpl.h>
 #include <rtps/DataSharing/DataSharingListener.hpp>
@@ -162,7 +161,7 @@ void ReaderLocator::stop()
 
 bool ReaderLocator::send(
         CDRMessage_t* message,
-        std::chrono::steady_clock::time_point& max_blocking_time_point) const
+        std::chrono::steady_clock::time_point max_blocking_time_point) const
 {
     if (locator_info_.remote_guid != c_Guid_Unknown && !is_local_reader_)
     {

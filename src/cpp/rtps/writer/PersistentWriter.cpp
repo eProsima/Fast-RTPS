@@ -44,7 +44,7 @@ PersistentWriter::PersistentWriter(
     ss << p_guid;
     persistence_guid_ = ss.str();
 
-    persistence_->load_writer_from_storage(persistence_guid_, guid, hist->m_changes,
+    persistence_->load_writer_from_storage(persistence_guid_, guid, hist,
             change_pool, payload_pool, hist->m_lastCacheChangeSeqNum);
 
     // Update history state after loading from DB

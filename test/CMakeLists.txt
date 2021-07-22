@@ -30,9 +30,7 @@ set(MEMORYCHECK_SUPPRESSIONS_FILE ${MEMORYCHECK_SUPPRESSIONS_FILE_TMP} CACHE FIL
 ###############################################################################
 if(EPROSIMA_BUILD_TESTS AND IS_TOP_LEVEL AND NOT EPROSIMA_INSTALLER)
     find_package(GTest CONFIG REQUIRED)
-    if (GTest_FOUND)
-        include(${PROJECT_SOURCE_DIR}/cmake/common/gtest.cmake)
-    endif()
+    include(${PROJECT_SOURCE_DIR}/cmake/common/gtest.cmake)
 
     add_subdirectory(blackbox)
     add_subdirectory(communication)

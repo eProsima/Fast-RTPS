@@ -57,6 +57,7 @@ protected:
             RTPSParticipantImpl* impl,
             const GUID_t& guid,
             const WriterAttributes& att,
+            fastdds::rtps::FlowController* flow_controller,
             WriterHistory* hist,
             WriterListener* listen = nullptr);
 
@@ -65,6 +66,7 @@ protected:
             const GUID_t& guid,
             const WriterAttributes& att,
             const std::shared_ptr<IPayloadPool>& payload_pool,
+            fastdds::rtps::FlowController* flow_controller,
             WriterHistory* hist,
             WriterListener* listen = nullptr);
 
@@ -74,6 +76,7 @@ protected:
             const WriterAttributes& att,
             const std::shared_ptr<IPayloadPool>& payload_pool,
             const std::shared_ptr<IChangePool>& change_pool,
+            fastdds::rtps::FlowController* flow_controller,
             WriterHistory* hist,
             WriterListener* listen = nullptr);
 
@@ -146,11 +149,6 @@ public:
             CacheChange_t* a_change) override;
 
     /**
-     * Method to indicate that there are changes not sent in some of all ReaderProxy.
-     */
-    void send_any_unsent_changes() override;
-
-    /**
      * Sends a change directly to a intraprocess reader.
      */
     bool intraprocess_delivery(
@@ -159,7 +157,16 @@ public:
 
     bool intraprocess_gap(
             ReaderProxy* reader_proxy,
-            const SequenceNumber_t& seq_num);
+            const SequenceNumber_t& seq_num)
+    {
+        SequenceNumber_t last_seq = seq_num + 1;
+        return intraprocess_gap(reader_proxy, seq_num, last_seq);
+    }
+
+    bool intraprocess_gap(
+            ReaderProxy* reader_proxy,
+            const SequenceNumber_t& first_seq,
+            const SequenceNumber_t& last_seq);
 
     bool intraprocess_heartbeat(
             ReaderProxy* reader_proxy,
@@ -300,9 +307,6 @@ public:
     void updateTimes(
             const WriterTimes& times);
 
-    void add_flow_controller(
-            std::unique_ptr<FlowController> controller) override;
-
     SequenceNumber_t next_sequence_number() const;
 
     /**
@@ -379,17 +383,47 @@ public:
      */
     const fastdds::rtps::IReaderDataFilter* reader_data_filter() const;
 
+    /*!
+     * Tells writer the sample can be sent to the network.
+     * This function should be used by a fastdds::rtps::FlowController.
+     *
+     * @param cache_change Pointer to the CacheChange_t that represents the sample which can be sent.
+     * @param group RTPSMessageGroup reference uses for generating the RTPS message.
+     * @param locator_selector RTPSMessageSenderInterface reference uses for selecting locators. The reference has to
+     * be a member of this RTPSWriter object.
+     * @param max_blocking_time_point Future timepoint where blocking send should end.
+     * @return Return code.
+     * @note Must be non-thread safe.
+     */
+    DeliveryRetCode deliver_sample_nts(
+            CacheChange_t* cache_change,
+            RTPSMessageGroup& group,
+            LocatorSelectorSender& locator_selector,
+            const std::chrono::time_point<std::chrono::steady_clock>& max_blocking_time) override;
+
+    LocatorSelectorSender& get_general_locator_selector() override
+    {
+        return locator_selector_general_;
+    }
+
+    LocatorSelectorSender& get_async_locator_selector() override
+    {
+        return locator_selector_async_;
+    }
+
 private:
 
     bool is_acked_by_all(
             const SequenceNumber_t seq) const;
 
     void update_reader_info(
+            LocatorSelectorSender& locator_selector,
             bool create_sender_resources);
 
     void send_heartbeat_piggyback_nts_(
             ReaderProxy* reader,
             RTPSMessageGroup& message_group,
+            LocatorSelectorSender& locator_selector,
             uint32_t& last_bytes_processed);
 
     void send_heartbeat_nts_(
@@ -408,41 +442,20 @@ private:
 
     void send_heartbeat_to_all_readers();
 
-    void send_changes_separatedly(
-            SequenceNumber_t max_sequence,
-            bool& activateHeartbeatPeriod);
+    void deliver_sample_to_intraprocesses(
+            CacheChange_t* change);
 
-    void send_all_intraprocess_changes(
-            SequenceNumber_t max_sequence);
+    void deliver_sample_to_datasharing(
+            CacheChange_t* change);
 
-    void send_all_datasharing_changes(
-            SequenceNumber_t max_sequence);
-
-    void send_all_unsent_changes(
-            SequenceNumber_t max_sequence,
-            bool& activateHeartbeatPeriod);
-
-    void send_unsent_changes_with_flow_control(
-            SequenceNumber_t max_sequence,
-            bool& activateHeartbeatPeriod);
-
-    bool send_hole_gaps_to_group(
-            RTPSMessageGroup& group);
-
-    void select_all_readers_with_lowmark_below(
-            SequenceNumber_t seq,
-            RTPSMessageGroup& group);
+    DeliveryRetCode deliver_sample_to_network(
+            CacheChange_t* change,
+            RTPSMessageGroup& group,
+            LocatorSelectorSender& locator_selector,
+            const std::chrono::time_point<std::chrono::steady_clock>& max_blocking_time);
 
     void prepare_datasharing_delivery(
             CacheChange_t* change);
-
-    void async_delivery(
-            CacheChange_t* change,
-            const std::chrono::time_point<std::chrono::steady_clock>& max_blocking_time);
-
-    void sync_delivery(
-            CacheChange_t* change,
-            const std::chrono::time_point<std::chrono::steady_clock>& max_blocking_time);
 
     //! True to disable piggyback heartbeats
     bool disable_heartbeat_piggyback_;
@@ -459,8 +472,6 @@ private:
 
     int32_t currentUsageSendBufferSize_;
 
-    std::vector<std::unique_ptr<FlowController>> m_controllers;
-
     bool there_are_remote_readers_ = false;
     bool there_are_local_readers_ = false;
 
@@ -474,6 +485,10 @@ private:
     //! Vector containing all the active ReaderProxies for datasharing delivery.
     ResourceLimitedVector<ReaderProxy*> matched_datasharing_readers_;
     bool there_are_datasharing_readers_ = false;
+
+    LocatorSelectorSender locator_selector_general_;
+
+    LocatorSelectorSender locator_selector_async_;
 };
 
 } /* namespace rtps */

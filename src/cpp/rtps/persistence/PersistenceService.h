@@ -34,6 +34,8 @@ namespace eprosima {
 namespace fastrtps {
 namespace rtps {
 
+class WriterHistory;
+
 /**
  * Abstract interface representing a persistence service implementaion
  * @ingroup RTPS_PERSISTENCE_MODULE
@@ -60,7 +62,7 @@ public:
     virtual bool load_writer_from_storage(
             const std::string& persistence_guid,
             const GUID_t& writer_guid,
-            std::vector<CacheChange_t*>& changes,
+            WriterHistory* history,
             const std::shared_ptr<IChangePool>& change_pool,
             const std::shared_ptr<IPayloadPool>& payload_pool,
             SequenceNumber_t& next_sequence) = 0;
@@ -106,6 +108,13 @@ public:
             const std::string& reader_guid,
             const GUID_t& writer_guid,
             const SequenceNumber_t& seq_number) = 0;
+
+    static std::vector<CacheChange_t*>& get_changes(
+            WriterHistory* history);
+
+    static void set_fragments(
+            WriterHistory* history,
+            CacheChange_t* change);
 
 };
 

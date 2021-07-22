@@ -70,7 +70,6 @@ PublisherImpl::PublisherImpl(
     , m_writerListener(this)
     , mp_userPublisher(nullptr)
     , mp_rtpsParticipant(nullptr)
-    , high_mark_for_frag_(0)
     , deadline_duration_us_(m_att.qos.m_deadline.period.to_ns() * 1e-3)
     , timer_owner_()
     , deadline_missed_status_()
@@ -186,42 +185,6 @@ bool PublisherImpl::create_new_change_with_params(
                     mp_writer->release_change(ch);
                     return false;
                 }
-            }
-
-            //TODO(Ricardo) This logic in a class. Then a user of rtps layer can use it.
-            if (high_mark_for_frag_ == 0)
-            {
-                uint32_t max_data_size = mp_writer->getMaxDataSize();
-                uint32_t writer_throughput_controller_bytes =
-                        mp_writer->calculateMaxDataSize(m_att.throughputController.bytesPerPeriod);
-                uint32_t participant_throughput_controller_bytes =
-                        mp_writer->calculateMaxDataSize(
-                    mp_rtpsParticipant->getRTPSParticipantAttributes().throughputController.bytesPerPeriod);
-
-                high_mark_for_frag_ =
-                        max_data_size > writer_throughput_controller_bytes ?
-                        writer_throughput_controller_bytes :
-                        (max_data_size > participant_throughput_controller_bytes ?
-                        participant_throughput_controller_bytes :
-                        max_data_size);
-                high_mark_for_frag_ &= ~3;
-            }
-
-            uint32_t final_high_mark_for_frag = high_mark_for_frag_;
-
-            // If needed inlineqos for related_sample_identity, then remove the inlinqos size from final fragment size.
-            if (wparams.related_sample_identity() != SampleIdentity::unknown())
-            {
-                final_high_mark_for_frag -= 32;
-            }
-
-            // If it is big data, fragment it.
-            if (ch->serializedPayload.length > final_high_mark_for_frag)
-            {
-                // Fragment the data.
-                // Set the fragment size to the cachechange.
-                ch->setFragmentSize(static_cast<uint16_t>(
-                            (std::min)(final_high_mark_for_frag, RTPSMessageGroup::get_max_fragment_payload_size())));
             }
 
             InstanceHandle_t change_handle = ch->instanceHandle;

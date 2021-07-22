@@ -13,13 +13,13 @@
                     <discovery_config>
                         <ignoreParticipantFlags>FILTER_DIFFERENT_PROCESS | FILTER_DIFFERENT_HOST</ignoreParticipantFlags>
                         <leaseAnnouncement>
-                            <sec>DURATION_INFINITY</sec>
+                            <sec>180</sec>
                         </leaseAnnouncement>
                         <leaseDuration>
                             <sec>DURATION_INFINITY</sec>
                         </leaseDuration>
                         <initialAnnouncements>
-                            <count>0</count>
+                            <count>2</count>
                         </initialAnnouncements>
                     </discovery_config>
                 </builtin>
@@ -71,13 +71,13 @@
                     <discovery_config>
                         <ignoreParticipantFlags>FILTER_DIFFERENT_PROCESS | FILTER_DIFFERENT_HOST</ignoreParticipantFlags>
                         <leaseAnnouncement>
-                            <sec>DURATION_INFINITY</sec>
+                            <sec>180</sec>
                         </leaseAnnouncement>
                         <leaseDuration>
                             <sec>DURATION_INFINITY</sec>
                         </leaseDuration>
                         <initialAnnouncements>
-                            <count>0</count>
+                            <count>2</count>
                         </initialAnnouncements>
                     </discovery_config>
                 </builtin>

@@ -208,11 +208,11 @@ TEST_P(PubSubHistory, PubSubAsReliableKeepLastReaderSmallDepth)
         ASSERT_TRUE(data.empty());
         if (enable_datasharing)
         {
-            reader.wait_for_all_received(std::chrono::seconds(300), num_messages);
+            reader.wait_for_all_received(std::chrono::seconds(3), num_messages);
         }
         else
         {
-            writer.waitForAllAcked(std::chrono::seconds(300));
+            writer.waitForAllAcked(std::chrono::seconds(3));
         }
 
         // Should be received only two samples.
@@ -302,11 +302,11 @@ TEST(PubSubHistory, PubSubKeepAll)
         ASSERT_LE(expected_data.size(), 2u);
         if (enable_datasharing)
         {
-            reader.wait_for_all_received(std::chrono::seconds(300), num_messages);
+            reader.wait_for_all_received(std::chrono::seconds(3), num_messages);
         }
         else
         {
-            writer.waitForAllAcked(std::chrono::seconds(300));
+            writer.waitForAllAcked(std::chrono::seconds(3));
         }
         reader.startReception(expected_data);
         // Block reader until reception finished or timeout.
@@ -361,11 +361,11 @@ TEST(PubSubHistory, PubSubKeepAllTransient)
         ASSERT_LE(expected_data.size(), 2u);
         if (enable_datasharing)
         {
-            reader.wait_for_all_received(std::chrono::seconds(300), num_messages);
+            reader.wait_for_all_received(std::chrono::seconds(3), num_messages);
         }
         else
         {
-            writer.waitForAllAcked(std::chrono::seconds(300));
+            writer.waitForAllAcked(std::chrono::seconds(3));
         }
         reader.startReception(expected_data);
         // Block reader until reception finished or timeout.
@@ -428,11 +428,11 @@ TEST_P(PubSubHistory, StatefulReaderCacheChangeRelease)
     ASSERT_TRUE(data.empty());
     if (enable_datasharing)
     {
-        reader.wait_for_all_received(std::chrono::seconds(300), 2);
+        reader.wait_for_all_received(std::chrono::seconds(3), 2);
     }
     else
     {
-        writer.waitForAllAcked(std::chrono::seconds(300));
+        writer.waitForAllAcked(std::chrono::seconds(3));
     }
     writer.destroy();
     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -526,7 +526,7 @@ TEST_P(PubSubHistory, PubSubAsReliableKeepLastReaderSmallDepthTwoPublishers)
     // Wait for discovery.
     writer.wait_discovery();
     writer2.wait_discovery();
-    reader.wait_discovery();
+    reader.wait_discovery(std::chrono::seconds::zero(), 2);
 
     HelloWorld data;
     data.message("Hello world!");
@@ -540,11 +540,11 @@ TEST_P(PubSubHistory, PubSubAsReliableKeepLastReaderSmallDepthTwoPublishers)
     // Wait for reader to acknowledge samples
     if (enable_datasharing)
     {
-        reader.wait_for_all_received(std::chrono::seconds(100), 2);
+        reader.wait_for_all_received(std::chrono::seconds(3), 2);
     }
     else
     {
-        writer.waitForAllAcked(std::chrono::seconds(100));
+        writer.waitForAllAcked(std::chrono::seconds(3));
     }
 
     // Second writer sends one sample (reader should discard previous one)
@@ -554,11 +554,11 @@ TEST_P(PubSubHistory, PubSubAsReliableKeepLastReaderSmallDepthTwoPublishers)
     // Wait for reader to acknowledge sample
     if (enable_datasharing)
     {
-        reader.wait_for_all_received(std::chrono::seconds(100), 3);
+        reader.wait_for_all_received(std::chrono::seconds(3), 3);
     }
     else
     {
-        writer2.waitForAllAcked(std::chrono::seconds(100));
+        writer2.waitForAllAcked(std::chrono::seconds(3));
     }
 
     // Only last sample should be present
@@ -1132,7 +1132,7 @@ TEST_P(PubSubHistory, WriterUnmatchClearsHistory)
     // Create another writer and send more data
     // Reader should be able to get the new data
     writer2.history_kind(eprosima::fastrtps::KEEP_ALL_HISTORY_QOS).mem_policy(mem_policy_).init();
-    ASSERT_TRUE(writer.isInitialized());
+    ASSERT_TRUE(writer2.isInitialized());
     writer2.wait_discovery();
     reader.wait_discovery();
 

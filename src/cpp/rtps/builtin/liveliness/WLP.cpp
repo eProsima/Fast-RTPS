@@ -252,11 +252,6 @@ bool WLP::createEndpoints()
     watt.endpoint.topicKind = WITH_KEY;
     watt.endpoint.durabilityKind = TRANSIENT_LOCAL;
     watt.endpoint.reliabilityKind = RELIABLE;
-    if (mp_participant->getRTPSParticipantAttributes().throughputController.bytesPerPeriod != UINT32_MAX &&
-            mp_participant->getRTPSParticipantAttributes().throughputController.periodMillisecs != 0)
-    {
-        watt.mode = ASYNCHRONOUS_WRITER;
-    }
     RTPSWriter* wout;
     if (mp_participant->createWriter(
                 &wout,
@@ -354,11 +349,6 @@ bool WLP::createSecureEndpoints()
     watt.endpoint.topicKind = WITH_KEY;
     watt.endpoint.durabilityKind = TRANSIENT_LOCAL;
     watt.endpoint.reliabilityKind = RELIABLE;
-    if (mp_participant->getRTPSParticipantAttributes().throughputController.bytesPerPeriod != UINT32_MAX &&
-            mp_participant->getRTPSParticipantAttributes().throughputController.periodMillisecs != 0)
-    {
-        watt.mode = ASYNCHRONOUS_WRITER;
-    }
 
     const security::ParticipantSecurityAttributes& part_attrs = mp_participant->security_attributes();
     security::PluginParticipantSecurityAttributes plugin_attrs(part_attrs.plugin_participant_attributes);

@@ -332,8 +332,6 @@ protected:
     }
     writer_listener_;
 
-    uint32_t high_mark_for_frag_;
-
     //! A timer used to check for deadlines
     fastrtps::rtps::TimedEvent* deadline_timer_ = nullptr;
 

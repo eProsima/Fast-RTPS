@@ -66,6 +66,7 @@ static void set_qos_from_attributes(
     qos.transport().send_socket_buffer_size = attr.sendSocketBufferSize;
     qos.transport().listen_socket_buffer_size = attr.listenSocketBufferSize;
     qos.name() = attr.getName();
+    qos.flow_controllers() = attr.flow_controllers;
 }
 
 DomainParticipantFactory::DomainParticipantFactory()

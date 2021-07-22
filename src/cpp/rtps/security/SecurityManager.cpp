@@ -506,7 +506,7 @@ void SecurityManager::destroy()
 
         mutex_.unlock();
 
-        auths_to_remove.clear();
+        auths_to_remove.clear(); // AuthUniquePtr must be destroyed without SecurityManager's mutex locked.
 
         delete_entities();
 
@@ -574,7 +574,7 @@ bool SecurityManager::restore_discovered_participant_info(
         // This is to avoid a deadlock with TimedEvents.
         DiscoveredParticipantInfo::AuthUniquePtr remote_participant_info = std::move(auth_ptr);
         remove_discovered_participant_info(remote_participant_info);
-        lock.unlock();
+        lock.unlock(); // AuthUniquePtr must be destroyed without SecurityManager's mutex locked.
     }
 
     return returned_value;
@@ -754,7 +754,7 @@ void SecurityManager::remove_participant(
         remove_discovered_participant_info(remote_participant_info);
 
         discovered_participants_.erase(dp_it);
-        lock.unlock();
+        lock.unlock(); // AuthUniquePtr must be destroyed without SecurityManager's mutex locked.
     }
 }
 
@@ -1049,12 +1049,6 @@ bool SecurityManager::create_participant_stateless_message_writer()
     watt.endpoint.topicKind = NO_KEY;
     watt.matched_readers_allocation = participant_->getRTPSParticipantAttributes().allocation.participants;
 
-    if (participant_->getRTPSParticipantAttributes().throughputController.bytesPerPeriod != UINT32_MAX &&
-            participant_->getRTPSParticipantAttributes().throughputController.periodMillisecs != 0)
-    {
-        watt.mode = ASYNCHRONOUS_WRITER;
-    }
-
     RTPSWriter* wout = nullptr;
     if (participant_->createWriter(&wout, watt, participant_stateless_message_pool_,
             participant_stateless_message_writer_history_, nullptr,
@@ -1204,13 +1198,6 @@ bool SecurityManager::create_participant_volatile_message_secure_writer()
     watt.endpoint.security_attributes().plugin_endpoint_attributes =
             PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ENCRYPTED;
     watt.matched_readers_allocation = participant_->getRTPSParticipantAttributes().allocation.participants;
-    // TODO(Ricardo) Study keep_all
-
-    if (participant_->getRTPSParticipantAttributes().throughputController.bytesPerPeriod != UINT32_MAX &&
-            participant_->getRTPSParticipantAttributes().throughputController.periodMillisecs != 0)
-    {
-        watt.mode = ASYNCHRONOUS_WRITER;
-    }
 
     RTPSWriter* wout = nullptr;
     if (participant_->createWriter(&wout, watt, participant_volatile_message_secure_pool_,

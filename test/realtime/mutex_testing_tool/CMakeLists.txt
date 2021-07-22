@@ -12,19 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if(GTest_FOUND)
-    add_library(mutex_testing_tool SHARED TMutex.cpp)
+add_library(mutex_testing_tool SHARED TMutex.cpp)
 
-    add_library(mutex_testing_tool_preload SHARED Mutex.cpp)
-    target_link_libraries(mutex_testing_tool_preload PRIVATE mutex_testing_tool ${CMAKE_DL_LIBS})
+add_library(mutex_testing_tool_preload SHARED Mutex.cpp)
+target_link_libraries(mutex_testing_tool_preload PRIVATE mutex_testing_tool ${CMAKE_DL_LIBS})
 
-    add_executable(TMutexTests TMutexTests.cpp)
-    target_link_libraries(TMutexTests mutex_testing_tool GTest::gtest)
-    STRING(REPLACE " " "\\ " MUTEX_PRELOAD_LIBRARY_FILE "$<TARGET_FILE:mutex_testing_tool_preload>")
-    add_gtest(TMutexTests SOURCES TMutexTests.cpp
-        ENVIRONMENTS
-        "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:mutex_testing_tool_preload>"
-        "LD_PRELOAD=$<TARGET_FILE_NAME:mutex_testing_tool_preload>"
-        LABELS "NoMemoryCheck"
-        )
-endif(GTest_FOUND)
+add_executable(TMutexTests TMutexTests.cpp)
+target_link_libraries(TMutexTests mutex_testing_tool GTest::gtest)
+STRING(REPLACE " " "\\ " MUTEX_PRELOAD_LIBRARY_FILE "$<TARGET_FILE:mutex_testing_tool_preload>")
+add_gtest(TMutexTests SOURCES TMutexTests.cpp
+    ENVIRONMENTS
+    "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:mutex_testing_tool_preload>"
+    "LD_PRELOAD=$<TARGET_FILE_NAME:mutex_testing_tool_preload>"
+    LABELS "NoMemoryCheck"
+    )

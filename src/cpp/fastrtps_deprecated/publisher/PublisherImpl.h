@@ -250,8 +250,6 @@ private:
 
     rtps::RTPSParticipant* mp_rtpsParticipant;
 
-    uint32_t high_mark_for_frag_;
-
     //! A timer used to check for deadlines
     rtps::TimedEvent* deadline_timer_;
     //! Deadline duration in microseconds

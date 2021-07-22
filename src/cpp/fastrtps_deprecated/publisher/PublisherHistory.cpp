@@ -300,7 +300,6 @@ bool PublisherHistory::removeMinChange()
 bool PublisherHistory::remove_change_pub(
         CacheChange_t* change)
 {
-
     if (mp_writer == nullptr || mp_mutex == nullptr)
     {
         logError(RTPS_HISTORY, "You need to create a Writer with this History before using it");

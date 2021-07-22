@@ -23,8 +23,8 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <sstream>
 
-#include <rtps/flowcontrol/ThroughputController.h>
 #include <rtps/persistence/PersistenceService.h>
 #include <rtps/history/BasicPayloadPool.hpp>
 
@@ -176,6 +176,11 @@ RTPSParticipantImpl::RTPSParticipantImpl(
         m_persistence_guid = m_guid;
     }
 
+    // Store the Guid in string format.
+    std::stringstream guid_sstr;
+    guid_sstr << m_guid;
+    guid_str_ = guid_sstr.str();
+
     // Client-server discovery protocol requires that every TCP transport has a listening port
     switch (PParam.builtin.discovery_config.discoveryProtocol)
     {
@@ -231,13 +236,6 @@ RTPSParticipantImpl::RTPSParticipantImpl(
     if (!networkFactoryHasRegisteredTransports())
     {
         return;
-    }
-
-    // Throughput controller, if the descriptor has valid values
-    if (PParam.throughputController.bytesPerPeriod != UINT32_MAX && PParam.throughputController.periodMillisecs != 0)
-    {
-        std::unique_ptr<FlowController> controller(new ThroughputController(PParam.throughputController, this));
-        m_controllers.push_back(std::move(controller));
     }
 
     /* If metatrafficMulticastLocatorList is empty, add mandatory default Locators
@@ -379,8 +377,8 @@ RTPSParticipantImpl::RTPSParticipantImpl(
     size_t num_send_buffers = m_att.allocation.send_buffers.preallocated_number;
     if (num_send_buffers == 0)
     {
-        // Three buffers (user, events and async writer threads)
-        num_send_buffers = 3;
+        // Two buffers (user, events)
+        num_send_buffers = 2;
         // Add one buffer per reception thread
         num_send_buffers += m_receiverResourcelist.size();
     }
@@ -388,6 +386,27 @@ RTPSParticipantImpl::RTPSParticipantImpl(
     // Create buffer pool
     send_buffers_.reset(new SendBuffersManager(num_send_buffers, allow_growing_buffers));
     send_buffers_->init(this);
+
+    // Initialize flow controller factory.
+    // This must be done after initiate network layer.
+    flow_controller_factory_.init(this);
+
+    // Support old API
+    if (PParam.throughputController.bytesPerPeriod != UINT32_MAX && PParam.throughputController.periodMillisecs != 0)
+    {
+        fastdds::rtps::FlowControllerDescriptor old_descriptor;
+        old_descriptor.name = guid_str_.c_str();
+        old_descriptor.max_bytes_per_period = PParam.throughputController.bytesPerPeriod;
+        old_descriptor.period_ms = PParam.throughputController.periodMillisecs;
+        flow_controller_factory_.register_flow_controller(old_descriptor);
+    }
+
+    // Register user's flow controllers.
+    for (auto flow_controller_desc : m_att.flow_controllers)
+    {
+        flow_controller_factory_.register_flow_controller(*flow_controller_desc.get());
+    }
+
 
 #if HAVE_SECURITY
     if (m_is_security_active)
@@ -598,13 +617,68 @@ bool RTPSParticipantImpl::create_writer(
     {
         return false;
     }
-    if (((param.throughputController.bytesPerPeriod != UINT32_MAX && param.throughputController.periodMillisecs != 0) ||
-            (m_att.throughputController.bytesPerPeriod != UINT32_MAX &&
-            m_att.throughputController.periodMillisecs != 0))
-            && param.mode != ASYNCHRONOUS_WRITER)
+
+    GUID_t guid(m_guid.guidPrefix, entId);
+    fastdds::rtps::FlowController* flow_controller = nullptr;
+    const char* flow_controller_name = param.flow_controller_name;
+
+    // Support of old flow controller style.
+    if (param.throughputController.bytesPerPeriod != UINT32_MAX && param.throughputController.periodMillisecs != 0)
     {
-        logError(RTPS_PARTICIPANT,
-                "Writer has to be configured to publish asynchronously, because a flowcontroller was configured");
+        flow_controller_name = guid_str_.c_str();
+        if (ASYNCHRONOUS_WRITER == param.mode)
+        {
+            fastdds::rtps::FlowControllerDescriptor old_descriptor;
+            old_descriptor.name = guid_str_.c_str();
+            old_descriptor.max_bytes_per_period = param.throughputController.bytesPerPeriod;
+            old_descriptor.period_ms = param.throughputController.periodMillisecs;
+            flow_controller_factory_.register_flow_controller(old_descriptor);
+            flow_controller =  flow_controller_factory_.retrieve_flow_controller(guid_str_.c_str(), param);
+        }
+        else
+        {
+            logWarning(RTPS_PARTICIPANT,
+                    "Throughput flow controller was configured while writer's publish mode is configured as synchronous." \
+                    "Throughput flow controller configuration is not taken into account.")
+
+        }
+    }
+    if (m_att.throughputController.bytesPerPeriod != UINT32_MAX && m_att.throughputController.periodMillisecs != 0)
+    {
+        if (ASYNCHRONOUS_WRITER == param.mode && nullptr == flow_controller)
+        {
+            flow_controller_name = guid_str_.c_str();
+            flow_controller = flow_controller_factory_.retrieve_flow_controller(guid_str_, param);
+        }
+        else
+        {
+            logWarning(RTPS_PARTICIPANT,
+                    "Throughput flow controller was configured while writer's publish mode is configured as synchronous." \
+                    "Throughput flow controller configuration is not taken into account.")
+        }
+    }
+
+    // Retrieve flow controller.
+    // If not default flow controller, publish_mode must be asynchronously.
+    if (nullptr == flow_controller &&
+            (fastdds::rtps::FASTDDS_FLOW_CONTROLLER_DEFAULT == flow_controller_name ||
+            ASYNCHRONOUS_WRITER == param.mode))
+    {
+        flow_controller = flow_controller_factory_.retrieve_flow_controller(flow_controller_name, param);
+    }
+
+    if (nullptr == flow_controller)
+    {
+        if (fastdds::rtps::FASTDDS_FLOW_CONTROLLER_DEFAULT != flow_controller_name &&
+                SYNCHRONOUS_WRITER == param.mode)
+        {
+            logError(RTPS_PARTICIPANT, "Cannot use a flow controller in synchronously publication mode.");
+        }
+        else
+        {
+            logError(RTPS_PARTICIPANT, "Cannot create the writer. Couldn't find flow controller "
+                    << flow_controller_name << " for writer.");
+        }
         return false;
     }
 
@@ -638,8 +712,7 @@ bool RTPSParticipantImpl::create_writer(
     normalize_endpoint_locators(param.endpoint);
 
     RTPSWriter* SWriter = nullptr;
-    GUID_t guid(m_guid.guidPrefix, entId);
-    SWriter = callback(guid, param, persistence, param.endpoint.reliabilityKind == RELIABLE);
+    SWriter = callback(guid, param, flow_controller, persistence, param.endpoint.reliabilityKind == RELIABLE);
 
     // restore attributes
     param.endpoint.persistence_guid = former_persistence_guid;
@@ -688,22 +761,11 @@ bool RTPSParticipantImpl::create_writer(
 
     std::lock_guard<std::recursive_mutex> guard(*mp_mutex);
     m_allWriterList.push_back(SWriter);
-    if (is_builtin)
-    {
-        async_thread().wake_up(SWriter);
-    }
-    else
+    if (!is_builtin)
     {
         m_userWriterList.push_back(SWriter);
     }
     *writer_out = SWriter;
-
-    // If the terminal throughput controller has proper user defined values, instantiate it
-    if (param.throughputController.bytesPerPeriod != UINT32_MAX && param.throughputController.periodMillisecs != 0)
-    {
-        std::unique_ptr<FlowController> controller(new ThroughputController(param.throughputController, SWriter));
-        SWriter->add_flow_controller(std::move(controller));
-    }
 
 #ifdef FASTDDS_STATISTICS
 
@@ -866,29 +928,33 @@ bool RTPSParticipantImpl::createWriter(
         bool isBuiltin)
 {
     auto callback = [hist, listen, this]
-                (const GUID_t& guid, WriterAttributes& param, IPersistenceService* persistence,
-                    bool is_reliable) -> RTPSWriter*
+                (const GUID_t& guid, WriterAttributes& param, fastdds::rtps::FlowController* flow_controller,
+                    IPersistenceService* persistence, bool is_reliable) -> RTPSWriter*
             {
                 if (is_reliable)
                 {
                     if (persistence != nullptr)
                     {
-                        return new StatefulPersistentWriter(this, guid, param, hist, listen, persistence);
+                        return new StatefulPersistentWriter(this, guid, param, flow_controller,
+                                       hist, listen, persistence);
                     }
                     else
                     {
-                        return new StatefulWriter(this, guid, param, hist, listen);
+                        return new StatefulWriter(this, guid, param, flow_controller,
+                                       hist, listen);
                     }
                 }
                 else
                 {
                     if (persistence != nullptr)
                     {
-                        return new StatelessPersistentWriter(this, guid, param, hist, listen, persistence);
+                        return new StatelessPersistentWriter(this, guid, param, flow_controller,
+                                       hist, listen, persistence);
                     }
                     else
                     {
-                        return new StatelessWriter(this, guid, param, hist, listen);
+                        return new StatelessWriter(this, guid, param, flow_controller,
+                                       hist, listen);
                     }
                 }
             };
@@ -911,30 +977,33 @@ bool RTPSParticipantImpl::createWriter(
     }
 
     auto callback = [hist, listen, &payload_pool, this]
-                (const GUID_t& guid, WriterAttributes& param, IPersistenceService* persistence,
-                    bool is_reliable) -> RTPSWriter*
+                (const GUID_t& guid, WriterAttributes& param, fastdds::rtps::FlowController* flow_controller,
+                    IPersistenceService* persistence, bool is_reliable) -> RTPSWriter*
             {
                 if (is_reliable)
                 {
                     if (persistence != nullptr)
                     {
-                        return new StatefulPersistentWriter(this, guid, param, payload_pool, hist, listen, persistence);
+                        return new StatefulPersistentWriter(this, guid, param, payload_pool, flow_controller,
+                                       hist, listen, persistence);
                     }
                     else
                     {
-                        return new StatefulWriter(this, guid, param, payload_pool, hist, listen);
+                        return new StatefulWriter(this, guid, param, payload_pool, flow_controller,
+                                       hist, listen);
                     }
                 }
                 else
                 {
                     if (persistence != nullptr)
                     {
-                        return new StatelessPersistentWriter(this, guid, param, payload_pool, hist, listen,
-                                       persistence);
+                        return new StatelessPersistentWriter(this, guid, param, payload_pool, flow_controller,
+                                       hist, listen, persistence);
                     }
                     else
                     {
-                        return new StatelessWriter(this, guid, param, payload_pool, hist, listen);
+                        return new StatelessWriter(this, guid, param, payload_pool, flow_controller,
+                                       hist, listen);
                     }
                 }
             };

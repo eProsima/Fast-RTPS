@@ -45,6 +45,7 @@
 #include <fastrtps/utils/IPLocator.h>
 #include <fastrtps/xmlparser/XMLParser.h>
 #include <fastrtps/xmlparser/XMLTree.h>
+#include <fastdds/rtps/flowcontrol/FlowControllerSchedulerPolicy.hpp>
 
 using eprosima::fastrtps::rtps::IPLocator;
 using eprosima::fastrtps::rtps::UDPTransportDescriptor;
@@ -682,6 +683,7 @@ public:
     }
 
     PubSubWriter& add_throughput_controller_descriptor_to_pparams(
+            eprosima::fastdds::rtps::FlowControllerSchedulerPolicy,
             uint32_t bytesPerPeriod,
             uint32_t periodInMs)
     {

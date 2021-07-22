@@ -1848,7 +1848,7 @@ XMLP_ret XMLParser::fillDataNode(
                 return XMLP_ret::XML_ERROR;
             }
         }
-        else if (strcmp(name, THROUGHPUT_CONT) == 0)
+        else if (strcmp(name, THROUGHPUT_CONT) == 0)    // TODO (Ricardo) Deprecated. Remove in the future.
         {
             // throughputController
             if (XMLP_ret::XML_OK !=
@@ -1856,6 +1856,7 @@ XMLP_ret XMLParser::fillDataNode(
             {
                 return XMLP_ret::XML_ERROR;
             }
+            logWarning(XML_PARSER, THROUGHPUT_CONT << " XML tag is deprecated");
         }
         else if (strcmp(name, USER_TRANS) == 0)
         {

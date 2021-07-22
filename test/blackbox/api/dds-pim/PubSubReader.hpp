@@ -322,6 +322,7 @@ public:
 
     void init()
     {
+        ASSERT_FALSE(initialized_);
         matched_ = 0;
 
         if (!xml_file_.empty())
@@ -362,7 +363,9 @@ public:
         ASSERT_TRUE(subscriber_->is_enabled());
 
         // Create topic
-        topic_ = participant_->create_topic(topic_name_, type_->getName(), eprosima::fastdds::dds::TOPIC_QOS_DEFAULT);
+        topic_ =
+                participant_->create_topic(topic_name_, type_->getName(),
+                        eprosima::fastdds::dds::TOPIC_QOS_DEFAULT);
         ASSERT_NE(topic_, nullptr);
         ASSERT_TRUE(topic_->is_enabled());
 
@@ -387,6 +390,7 @@ public:
                 topic_name_ << std::endl;
             initialized_ = true;
         }
+
     }
 
     bool isInitialized() const
@@ -416,6 +420,8 @@ public:
             eprosima::fastdds::dds::DomainParticipantFactory::get_instance()->delete_participant(participant_);
             participant_ = nullptr;
         }
+
+        initialized_ = false;
     }
 
     std::list<type> data_not_received()

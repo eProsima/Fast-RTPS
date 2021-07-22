@@ -158,182 +158,180 @@ option(FASTRTPS_API_TESTS "Enable tests using FastRTPS API" ON)
 option(FASTDDS_PIM_API_TESTS "Enable tests using FastDDS API" OFF)
 
 if(NOT ((MSVC OR MSVC_IDE) AND EPROSIMA_INSTALLER) AND fastcdr_FOUND)
-    if(GTest_FOUND)
-        if(WIN32)
-            add_definitions(
-                -D_WIN32_WINNT=0x0601
-                -D_CRT_SECURE_NO_WARNINGS
-                )
-        endif()
-
-        ###############################################################################
-        # Unit tests
-        ###############################################################################
-        file(GLOB RTPS_BLACKBOXTESTS_TEST_SOURCE "common/RTPSBlackboxTests*.cpp")
-        set(RTPS_BLACKBOXTESTS_SOURCE ${RTPS_BLACKBOXTESTS_TEST_SOURCE}
-            types/HelloWorld.cpp
-            types/HelloWorldType.cpp
-            types/KeyedHelloWorld.cpp
-            types/KeyedHelloWorldType.cpp
-            types/String.cpp
-            types/StringType.cpp
-            types/Data64kb.cpp
-            types/Data64kbType.cpp
-            types/Data1mb.cpp
-            types/Data1mbType.cpp
-            types/FixedSized.cpp
-            types/FixedSizedType.cpp
-
-            utils/data_generators.cpp
-            utils/lambda_functions.cpp
-            utils/print_functions.cpp
+    if(WIN32)
+        add_definitions(
+            -D_WIN32_WINNT=0x0601
+            -D_CRT_SECURE_NO_WARNINGS
             )
-        add_executable(BlackboxTests_RTPS ${RTPS_BLACKBOXTESTS_SOURCE})
-        target_compile_definitions(BlackboxTests_RTPS PRIVATE
+    endif()
+
+    ###############################################################################
+    # Unit tests
+    ###############################################################################
+    file(GLOB RTPS_BLACKBOXTESTS_TEST_SOURCE "common/RTPSBlackboxTests*.cpp")
+    set(RTPS_BLACKBOXTESTS_SOURCE ${RTPS_BLACKBOXTESTS_TEST_SOURCE}
+        types/HelloWorld.cpp
+        types/HelloWorldType.cpp
+        types/KeyedHelloWorld.cpp
+        types/KeyedHelloWorldType.cpp
+        types/String.cpp
+        types/StringType.cpp
+        types/Data64kb.cpp
+        types/Data64kbType.cpp
+        types/Data1mb.cpp
+        types/Data1mbType.cpp
+        types/FixedSized.cpp
+        types/FixedSizedType.cpp
+
+        utils/data_generators.cpp
+        utils/lambda_functions.cpp
+        utils/print_functions.cpp
+        )
+    add_executable(BlackboxTests_RTPS ${RTPS_BLACKBOXTESTS_SOURCE})
+    target_compile_definitions(BlackboxTests_RTPS PRIVATE
+        BOOST_ASIO_STANDALONE
+        ASIO_STANDALONE
+        $<$<NOT:$<BOOL:${IS_THIRDPARTY_BOOST_SUPPORTED}>>:FASTDDS_SHM_TRANSPORT_DISABLED> # Do not compile SHM Transport
+        $<$<AND:$<NOT:$<BOOL:${WIN32}>>,$<STREQUAL:"${CMAKE_BUILD_TYPE}","Debug">>:__DEBUG>
+        $<$<BOOL:${INTERNAL_DEBUG}>:__INTERNALDEBUG> # Internal debug activated.
+        )
+    target_include_directories(BlackboxTests_RTPS PRIVATE
+        ${Asio_INCLUDE_DIR})
+    target_link_libraries(BlackboxTests_RTPS fastrtps fastcdr foonathan_memory GTest::gtest)
+    add_blackbox_gtest(BlackboxTests_RTPS SOURCES ${RTPS_BLACKBOXTESTS_TEST_SOURCE})
+
+    file(GLOB BLACKBOXTESTS_TEST_SOURCE "common/BlackboxTests*.cpp")
+    set(BLACKBOXTESTS_SOURCE ${BLACKBOXTESTS_TEST_SOURCE}
+        types/HelloWorld.cpp
+        types/HelloWorldType.cpp
+        types/KeyedHelloWorld.cpp
+        types/KeyedHelloWorldType.cpp
+        types/String.cpp
+        types/StringType.cpp
+        types/Data64kb.cpp
+        types/Data64kbType.cpp
+        types/Data1mb.cpp
+        types/Data1mbType.cpp
+        types/FixedSized.cpp
+        types/FixedSizedType.cpp
+
+        utils/data_generators.cpp
+        utils/lambda_functions.cpp
+        utils/print_functions.cpp
+
+        common/TCPReqRepHelloWorldRequester.cpp
+        common/TCPReqRepHelloWorldReplier.cpp
+        )
+
+    file(GLOB DDS_BLACKBOXTESTS_TEST_SOURCE "common/DDSBlackboxTests*.cpp")
+    set(DDS_BLACKBOXTESTS_SOURCE
+        ${DDS_BLACKBOXTESTS_TEST_SOURCE}
+        ${BLACKBOXTESTS_SOURCE}
+        )
+
+    # Prepare static discovery xml file for blackbox tests.
+    string(RANDOM LENGTH 4 ALPHABET 0123456789 TOPIC_RANDOM_NUMBER)
+    math(EXPR TOPIC_RANDOM_NUMBER "${TOPIC_RANDOM_NUMBER} + 0") # Remove extra leading 0s.
+    string(RANDOM LENGTH 4 ALPHABET 0123456789 W_UNICAST_PORT_RANDOM_NUMBER)
+    math(EXPR W_UNICAST_PORT_RANDOM_NUMBER "${W_UNICAST_PORT_RANDOM_NUMBER} + 0") # Remove extra leading 0s.
+    if(W_UNICAST_PORT_RANDOM_NUMBER LESS 1025)
+        math(EXPR W_UNICAST_PORT_RANDOM_NUMBER "${W_UNICAST_PORT_RANDOM_NUMBER} + 1024") # Remove extra leading 0s.
+    endif()
+    math(EXPR R_UNICAST_PORT_RANDOM_NUMBER "${W_UNICAST_PORT_RANDOM_NUMBER} + 1")
+    math(EXPR MULTICAST_PORT_RANDOM_NUMBER "${R_UNICAST_PORT_RANDOM_NUMBER} + 1")
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/PubSubWriter.xml.in
+        ${CMAKE_CURRENT_BINARY_DIR}/PubSubWriter.xml)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/PubSubReader.xml.in
+        ${CMAKE_CURRENT_BINARY_DIR}/PubSubReader.xml)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/discovery_participant_flags.xml
+        ${CMAKE_CURRENT_BINARY_DIR}/discovery_participant_flags.xml)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/persistence.xml
+        ${CMAKE_CURRENT_BINARY_DIR}/persistence.xml)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/StatisticsDomainParticipant.xml
+        ${CMAKE_CURRENT_BINARY_DIR}/StatisticsDomainParticipant.xml)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/utils/check_guid.py
+        ${CMAKE_CURRENT_BINARY_DIR}/check_guid.py)
+
+    if(FASTRTPS_API_TESTS)
+        set(BLACKBOXTESTS_FASTRTPS_SOURCE
+            ${BLACKBOXTESTS_SOURCE}
+            api/fastrtps_deprecated/ReqRepHelloWorldRequester.cpp
+            api/fastrtps_deprecated/ReqRepHelloWorldReplier.cpp
+            )
+
+        add_executable(BlackboxTests_FastRTPS ${BLACKBOXTESTS_FASTRTPS_SOURCE})
+        target_compile_definitions(BlackboxTests_FastRTPS PRIVATE
             BOOST_ASIO_STANDALONE
             ASIO_STANDALONE
             $<$<NOT:$<BOOL:${IS_THIRDPARTY_BOOST_SUPPORTED}>>:FASTDDS_SHM_TRANSPORT_DISABLED> # Do not compile SHM Transport
             $<$<AND:$<NOT:$<BOOL:${WIN32}>>,$<STREQUAL:"${CMAKE_BUILD_TYPE}","Debug">>:__DEBUG>
             $<$<BOOL:${INTERNAL_DEBUG}>:__INTERNALDEBUG> # Internal debug activated.
             )
-        target_include_directories(BlackboxTests_RTPS PRIVATE
-            ${Asio_INCLUDE_DIR})
-        target_link_libraries(BlackboxTests_RTPS fastrtps fastcdr foonathan_memory GTest::gtest)
-        add_blackbox_gtest(BlackboxTests_RTPS SOURCES ${RTPS_BLACKBOXTESTS_TEST_SOURCE})
+        target_include_directories(BlackboxTests_FastRTPS PRIVATE
+            ${Asio_INCLUDE_DIR}
+            api/fastrtps_deprecated)
+        target_link_libraries(BlackboxTests_FastRTPS fastrtps fastcdr foonathan_memory GTest::gtest)
+        add_blackbox_gtest(BlackboxTests_FastRTPS SOURCES ${BLACKBOXTESTS_TEST_SOURCE}
+            ENVIRONMENTS "CERTS_PATH=${PROJECT_SOURCE_DIR}/test/certs"
+            "TOPIC_RANDOM_NUMBER=${TOPIC_RANDOM_NUMBER}"
+            "W_UNICAST_PORT_RANDOM_NUMBER=${W_UNICAST_PORT_RANDOM_NUMBER}"
+            "R_UNICAST_PORT_RANDOM_NUMBER=${R_UNICAST_PORT_RANDOM_NUMBER}"
+            "MULTICAST_PORT_RANDOM_NUMBER=${MULTICAST_PORT_RANDOM_NUMBER}"
+            )
+    endif(FASTRTPS_API_TESTS)
 
-        file(GLOB BLACKBOXTESTS_TEST_SOURCE "common/BlackboxTests*.cpp")
-        set(BLACKBOXTESTS_SOURCE ${BLACKBOXTESTS_TEST_SOURCE}
-            types/HelloWorld.cpp
-            types/HelloWorldType.cpp
-            types/KeyedHelloWorld.cpp
-            types/KeyedHelloWorldType.cpp
-            types/String.cpp
-            types/StringType.cpp
-            types/Data64kb.cpp
-            types/Data64kbType.cpp
-            types/Data1mb.cpp
-            types/Data1mbType.cpp
-            types/FixedSized.cpp
-            types/FixedSizedType.cpp
-
-            utils/data_generators.cpp
-            utils/lambda_functions.cpp
-            utils/print_functions.cpp
-
-            common/TCPReqRepHelloWorldRequester.cpp
-            common/TCPReqRepHelloWorldReplier.cpp
+    if(FASTDDS_PIM_API_TESTS)
+        set(BLACKBOXTESTS_FASTDDS_PIM_SOURCE
+            ${DDS_BLACKBOXTESTS_SOURCE}
+            api/dds-pim/ReqRepHelloWorldRequester.cpp
+            api/dds-pim/ReqRepHelloWorldReplier.cpp
             )
 
-        file(GLOB DDS_BLACKBOXTESTS_TEST_SOURCE "common/DDSBlackboxTests*.cpp")
-        set(DDS_BLACKBOXTESTS_SOURCE
-            ${DDS_BLACKBOXTESTS_TEST_SOURCE}
-            ${BLACKBOXTESTS_SOURCE}
+        if (FASTDDS_STATISTICS)
+
+            set(statistics_sources
+                ${PROJECT_SOURCE_DIR}/src/cpp/statistics/types/types.cxx
+                ${PROJECT_SOURCE_DIR}/src/cpp/statistics/types/typesPubSubTypes.cxx
+                )
+
+            list(APPEND BLACKBOXTESTS_FASTDDS_PIM_SOURCE ${statistics_sources})
+
+        endif()
+
+        add_executable(BlackboxTests_DDS_PIM ${BLACKBOXTESTS_FASTDDS_PIM_SOURCE})
+        target_compile_definitions(BlackboxTests_DDS_PIM PRIVATE
+            BOOST_ASIO_STANDALONE
+            ASIO_STANDALONE
+            $<$<NOT:$<BOOL:${IS_THIRDPARTY_BOOST_SUPPORTED}>>:FASTDDS_SHM_TRANSPORT_DISABLED> # Do not compile SHM Transport
+            $<$<AND:$<NOT:$<BOOL:${WIN32}>>,$<STREQUAL:"${CMAKE_BUILD_TYPE}","Debug">>:__DEBUG>
+            $<$<BOOL:${INTERNAL_DEBUG}>:__INTERNALDEBUG> # Internal debug activated.
             )
+        target_include_directories(BlackboxTests_DDS_PIM PRIVATE
+            ${Asio_INCLUDE_DIR}
+            api/dds-pim)
+        target_link_libraries(BlackboxTests_DDS_PIM fastrtps fastcdr foonathan_memory GTest::gtest)
+        add_blackbox_gtest(BlackboxTests_DDS_PIM SOURCES ${DDS_BLACKBOXTESTS_SOURCE}
+            ENVIRONMENTS "CERTS_PATH=${PROJECT_SOURCE_DIR}/test/certs"
+            "TOPIC_RANDOM_NUMBER=${TOPIC_RANDOM_NUMBER}"
+            "W_UNICAST_PORT_RANDOM_NUMBER=${W_UNICAST_PORT_RANDOM_NUMBER}"
+            "R_UNICAST_PORT_RANDOM_NUMBER=${R_UNICAST_PORT_RANDOM_NUMBER}"
+            "MULTICAST_PORT_RANDOM_NUMBER=${MULTICAST_PORT_RANDOM_NUMBER}"
+            )
+    endif(FASTDDS_PIM_API_TESTS)
 
-        # Prepare static discovery xml file for blackbox tests.
-        string(RANDOM LENGTH 4 ALPHABET 0123456789 TOPIC_RANDOM_NUMBER)
-        math(EXPR TOPIC_RANDOM_NUMBER "${TOPIC_RANDOM_NUMBER} + 0") # Remove extra leading 0s.
-        string(RANDOM LENGTH 4 ALPHABET 0123456789 W_UNICAST_PORT_RANDOM_NUMBER)
-        math(EXPR W_UNICAST_PORT_RANDOM_NUMBER "${W_UNICAST_PORT_RANDOM_NUMBER} + 0") # Remove extra leading 0s.
-        if(W_UNICAST_PORT_RANDOM_NUMBER LESS 1025)
-            math(EXPR W_UNICAST_PORT_RANDOM_NUMBER "${W_UNICAST_PORT_RANDOM_NUMBER} + 1024") # Remove extra leading 0s.
-        endif()
-        math(EXPR R_UNICAST_PORT_RANDOM_NUMBER "${W_UNICAST_PORT_RANDOM_NUMBER} + 1")
-        math(EXPR MULTICAST_PORT_RANDOM_NUMBER "${R_UNICAST_PORT_RANDOM_NUMBER} + 1")
-        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/PubSubWriter.xml.in
-            ${CMAKE_CURRENT_BINARY_DIR}/PubSubWriter.xml)
-        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/PubSubReader.xml.in
-            ${CMAKE_CURRENT_BINARY_DIR}/PubSubReader.xml)
-        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/discovery_participant_flags.xml
-            ${CMAKE_CURRENT_BINARY_DIR}/discovery_participant_flags.xml)
-        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/persistence.xml
-            ${CMAKE_CURRENT_BINARY_DIR}/persistence.xml)
-        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/StatisticsDomainParticipant.xml
-            ${CMAKE_CURRENT_BINARY_DIR}/StatisticsDomainParticipant.xml)
-        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/utils/check_guid.py
-            ${CMAKE_CURRENT_BINARY_DIR}/check_guid.py)
-
-        if(FASTRTPS_API_TESTS)
-            set(BLACKBOXTESTS_FASTRTPS_SOURCE
-                ${BLACKBOXTESTS_SOURCE}
-                api/fastrtps_deprecated/ReqRepHelloWorldRequester.cpp
-                api/fastrtps_deprecated/ReqRepHelloWorldReplier.cpp
-                )
-
-            add_executable(BlackboxTests_FastRTPS ${BLACKBOXTESTS_FASTRTPS_SOURCE})
-            target_compile_definitions(BlackboxTests_FastRTPS PRIVATE
-                BOOST_ASIO_STANDALONE
-                ASIO_STANDALONE
-                $<$<NOT:$<BOOL:${IS_THIRDPARTY_BOOST_SUPPORTED}>>:FASTDDS_SHM_TRANSPORT_DISABLED> # Do not compile SHM Transport
-                $<$<AND:$<NOT:$<BOOL:${WIN32}>>,$<STREQUAL:"${CMAKE_BUILD_TYPE}","Debug">>:__DEBUG>
-                $<$<BOOL:${INTERNAL_DEBUG}>:__INTERNALDEBUG> # Internal debug activated.
-                )
-            target_include_directories(BlackboxTests_FastRTPS PRIVATE
-                ${Asio_INCLUDE_DIR}
-                api/fastrtps_deprecated)
-            target_link_libraries(BlackboxTests_FastRTPS fastrtps fastcdr foonathan_memory GTest::gtest)
-            add_blackbox_gtest(BlackboxTests_FastRTPS SOURCES ${BLACKBOXTESTS_TEST_SOURCE}
-                ENVIRONMENTS "CERTS_PATH=${PROJECT_SOURCE_DIR}/test/certs"
-                "TOPIC_RANDOM_NUMBER=${TOPIC_RANDOM_NUMBER}"
-                "W_UNICAST_PORT_RANDOM_NUMBER=${W_UNICAST_PORT_RANDOM_NUMBER}"
-                "R_UNICAST_PORT_RANDOM_NUMBER=${R_UNICAST_PORT_RANDOM_NUMBER}"
-                "MULTICAST_PORT_RANDOM_NUMBER=${MULTICAST_PORT_RANDOM_NUMBER}"
-                )
-        endif(FASTRTPS_API_TESTS)
-
-        if(FASTDDS_PIM_API_TESTS)
-            set(BLACKBOXTESTS_FASTDDS_PIM_SOURCE
-                ${DDS_BLACKBOXTESTS_SOURCE}
-                api/dds-pim/ReqRepHelloWorldRequester.cpp
-                api/dds-pim/ReqRepHelloWorldReplier.cpp
-                )
-
-            if (FASTDDS_STATISTICS)
-
-                set(statistics_sources
-                    ${PROJECT_SOURCE_DIR}/src/cpp/statistics/types/types.cxx
-                    ${PROJECT_SOURCE_DIR}/src/cpp/statistics/types/typesPubSubTypes.cxx
-                    )
-
-                list(APPEND BLACKBOXTESTS_FASTDDS_PIM_SOURCE ${statistics_sources})
-
-            endif()
-
-            add_executable(BlackboxTests_DDS_PIM ${BLACKBOXTESTS_FASTDDS_PIM_SOURCE})
-            target_compile_definitions(BlackboxTests_DDS_PIM PRIVATE
-                BOOST_ASIO_STANDALONE
-                ASIO_STANDALONE
-                $<$<NOT:$<BOOL:${IS_THIRDPARTY_BOOST_SUPPORTED}>>:FASTDDS_SHM_TRANSPORT_DISABLED> # Do not compile SHM Transport
-                $<$<AND:$<NOT:$<BOOL:${WIN32}>>,$<STREQUAL:"${CMAKE_BUILD_TYPE}","Debug">>:__DEBUG>
-                $<$<BOOL:${INTERNAL_DEBUG}>:__INTERNALDEBUG> # Internal debug activated.
-                )
-            target_include_directories(BlackboxTests_DDS_PIM PRIVATE
-                ${Asio_INCLUDE_DIR}
-                api/dds-pim)
-            target_link_libraries(BlackboxTests_DDS_PIM fastrtps fastcdr foonathan_memory GTest::gtest)
-            add_blackbox_gtest(BlackboxTests_DDS_PIM SOURCES ${DDS_BLACKBOXTESTS_SOURCE}
-                ENVIRONMENTS "CERTS_PATH=${PROJECT_SOURCE_DIR}/test/certs"
-                "TOPIC_RANDOM_NUMBER=${TOPIC_RANDOM_NUMBER}"
-                "W_UNICAST_PORT_RANDOM_NUMBER=${W_UNICAST_PORT_RANDOM_NUMBER}"
-                "R_UNICAST_PORT_RANDOM_NUMBER=${R_UNICAST_PORT_RANDOM_NUMBER}"
-                "MULTICAST_PORT_RANDOM_NUMBER=${MULTICAST_PORT_RANDOM_NUMBER}"
-                )
-        endif(FASTDDS_PIM_API_TESTS)
-
-        # Add 'xfail' label to flaky tests
-        set(BLACKBOX_XFAIL_LIST XFAIL_RTPS)
-        if(FASTRTPS_API_TESTS)
-            set(BLACKBOX_XFAIL_LIST ${BLACKBOX_XFAIL_LIST} XFAIL_FASTRTPS)
-        endif()
-        if(FASTDDS_PIM_API_TESTS)
-            set(BLACKBOX_XFAIL_LIST ${BLACKBOX_XFAIL_LIST} XFAIL_DDS_PIM)
-        endif()
-
-        foreach(BLACKBOX_XFAIL_TEST ${BLACKBOX_XFAIL_LIST})
-            add_xfail_label(${CMAKE_CURRENT_SOURCE_DIR}/${BLACKBOX_XFAIL_TEST}.list)
-            if(SECURITY)
-                add_xfail_label(${CMAKE_CURRENT_SOURCE_DIR}/${BLACKBOX_XFAIL_TEST}_SECURITY.list)
-            endif()
-        endforeach()
+    # Add 'xfail' label to flaky tests
+    set(BLACKBOX_XFAIL_LIST XFAIL_RTPS)
+    if(FASTRTPS_API_TESTS)
+        set(BLACKBOX_XFAIL_LIST ${BLACKBOX_XFAIL_LIST} XFAIL_FASTRTPS)
     endif()
+    if(FASTDDS_PIM_API_TESTS)
+        set(BLACKBOX_XFAIL_LIST ${BLACKBOX_XFAIL_LIST} XFAIL_DDS_PIM)
+    endif()
+
+    foreach(BLACKBOX_XFAIL_TEST ${BLACKBOX_XFAIL_LIST})
+        add_xfail_label(${CMAKE_CURRENT_SOURCE_DIR}/${BLACKBOX_XFAIL_TEST}.list)
+        if(SECURITY)
+            add_xfail_label(${CMAKE_CURRENT_SOURCE_DIR}/${BLACKBOX_XFAIL_TEST}_SECURITY.list)
+        endif()
+    endforeach()
 endif()

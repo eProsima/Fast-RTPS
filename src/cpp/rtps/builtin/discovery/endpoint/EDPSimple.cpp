@@ -434,13 +434,6 @@ void EDPSimple::set_builtin_writer_attributes(
     attributes.endpoint.reliabilityKind = RELIABLE;
     attributes.endpoint.durabilityKind = TRANSIENT_LOCAL;
     attributes.endpoint.topicKind = WITH_KEY;
-
-    // Set as asynchronous if there is a throughput controller installed
-    if (mp_RTPSParticipant->getRTPSParticipantAttributes().throughputController.bytesPerPeriod != UINT32_MAX &&
-            mp_RTPSParticipant->getRTPSParticipantAttributes().throughputController.periodMillisecs != 0)
-    {
-        attributes.mode = ASYNCHRONOUS_WRITER;
-    }
 }
 
 bool EDPSimple::createSEDPEndpoints()

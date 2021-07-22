@@ -37,6 +37,7 @@ class WriterHistory : public rtps::History
 {
     friend class RTPSWriter;
     friend class PersistentWriter;
+    friend class IPersistenceService;
 
     WriterHistory(
             WriterHistory&&) = delete;
@@ -133,6 +134,13 @@ protected:
     SequenceNumber_t m_lastCacheChangeSeqNum;
     //!Pointer to the associated RTPSWriter;
     RTPSWriter* mp_writer;
+
+    uint32_t high_mark_for_frag_ = 0;
+
+private:
+
+    void set_fragments(
+            CacheChange_t* change);
 };
 
 } // namespace rtps

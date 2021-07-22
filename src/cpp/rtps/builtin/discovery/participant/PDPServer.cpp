@@ -636,9 +636,6 @@ void PDPServer::announceParticipantState(
                     metatraffic_locators.add_multicast_locator(locator);
                 }
 
-                // If the DATA is already in the writer's history, then remove it, but do not release the change.
-                remove_change_from_history_nts(mp_PDPWriterHistory, change, false);
-
                 // Add our change to PDPWriterHistory
                 mp_PDPWriterHistory->add_change(change, wp);
                 change->write_params = wp;
@@ -784,6 +781,10 @@ bool PDPServer::remove_remote_participant(
             pC->instanceHandle = partGUID;
             pC->kind = NOT_ALIVE_DISPOSED_UNREGISTERED;
             pC->writerGUID = mp_PDPWriter->getGuid();
+            // Reset the internal CacheChange_t union.
+            pC->writer_info.next = nullptr;
+            pC->writer_info.previous = nullptr;
+            pC->writer_info.num_sent_submessages = 0;
 
             // Use this server identity in order to hint clients it's a lease duration demise
             WriteParams& wp = pC->write_params;
@@ -805,7 +806,7 @@ bool PDPServer::remove_remote_participant(
             else
             {
                 // if the database doesn't take the ownership remove
-                mp_PDPWriter->release_change(pC);
+                mp_PDPReader->releaseCache(pC);
             }
         }
     }
@@ -1390,7 +1391,7 @@ void PDPServer::send_announcement(
     }
 
     DirectMessageSender sender(getRTPSParticipant(), &remote_readers, &locators);
-    RTPSMessageGroup group(getRTPSParticipant(), mp_PDPWriter, sender);
+    RTPSMessageGroup group(getRTPSParticipant(), mp_PDPWriter, &sender);
 
     if (dispose)
     {

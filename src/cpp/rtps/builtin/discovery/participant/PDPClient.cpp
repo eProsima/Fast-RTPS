@@ -499,7 +499,7 @@ void PDPClient::announceParticipantState(
             }
 
             DirectMessageSender sender(getRTPSParticipant(), &remote_readers, &locators);
-            RTPSMessageGroup group(getRTPSParticipant(), mp_PDPWriter, sender);
+            RTPSMessageGroup group(getRTPSParticipant(), mp_PDPWriter, &sender);
             if (!group.add_data(*change, false))
             {
                 logError(RTPS_PDP, "Error sending announcement from client to servers");
@@ -537,7 +537,7 @@ void PDPClient::announceParticipantState(
                 }
 
                 DirectMessageSender sender(getRTPSParticipant(), &remote_readers, &locators);
-                RTPSMessageGroup group(getRTPSParticipant(), mp_PDPWriter, sender);
+                RTPSMessageGroup group(getRTPSParticipant(), mp_PDPWriter, &sender);
 
                 if (!group.add_data(*pPD, false))
                 {

@@ -52,7 +52,7 @@
 #include <fastdds/rtps/messages/MessageReceiver.h>
 
 #include <fastdds/rtps/resources/ResourceEvent.h>
-#include <fastdds/rtps/resources/AsyncWriterThread.h>
+#include "../flowcontrol/FlowControllerFactory.hpp"
 
 #include <statistics/rtps/StatisticsBase.hpp>
 
@@ -96,7 +96,6 @@ class ReaderHistory;
 class ReaderListener;
 class StatefulReader;
 class PDPSimple;
-class FlowController;
 class IPersistenceService;
 class WLP;
 
@@ -340,11 +339,6 @@ public:
         return mp_userParticipant;
     }
 
-    std::vector<std::unique_ptr<FlowController>>& getFlowControllers()
-    {
-        return m_controllers;
-    }
-
     /*!
      * @remarks Non thread-safe.
      */
@@ -441,11 +435,6 @@ public:
     void get_sending_locators(
             rtps::LocatorList_t& locators) const;
 
-    AsyncWriterThread& async_thread()
-    {
-        return async_thread_;
-    }
-
     /***
      * @returns A pointer to a local reader given its endpoint guid, or nullptr if not found.
      */
@@ -499,6 +488,8 @@ private:
     RTPSParticipantAttributes m_att;
     //!Guid of the RTPSParticipant.
     GUID_t m_guid;
+    //! String containing the RTPSParticipant Guid.
+    std::string guid_str_;
     //!Persistence guid of the RTPSParticipant
     GUID_t m_persistence_guid;
     //! Sending resources. - DEPRECATED -Stays commented for reference purposes
@@ -522,8 +513,6 @@ private:
     std::vector<RTPSReader*> m_userReaderList;
     //!Network Factory
     NetworkFactory m_network_Factory;
-    //!Async writer thread
-    AsyncWriterThread async_thread_;
     //! Type cheking function
     std::function<bool(const std::string&)> type_check_fn_;
     //!Pool of send buffers
@@ -626,9 +615,9 @@ private:
     bool is_intraprocess_only_;
 
     /*
-     * Flow controllers for this participant.
+     * Flow controller factory.
      */
-    std::vector<std::unique_ptr<FlowController>> m_controllers;
+    fastdds::rtps::FlowControllerFactory flow_controller_factory_;
 
 #if HAVE_SECURITY
     security::ParticipantSecurityAttributes security_attributes_;

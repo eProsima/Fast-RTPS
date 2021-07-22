@@ -349,7 +349,7 @@ private:
         info.generation_rank = 0;
         info.absoulte_generation_rank = 0;
         info.source_timestamp = change->sourceTimestamp;
-        info.reception_timestamp = change->receptionTimestamp;
+        info.reception_timestamp = change->reader_info.receptionTimestamp;
         info.instance_handle = handle_;
         info.publication_handle = InstanceHandle_t(change->writerGUID);
         info.sample_identity.writer_guid(change->writerGUID);

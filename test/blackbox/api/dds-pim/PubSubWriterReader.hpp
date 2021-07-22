@@ -370,6 +370,7 @@ public:
             bool avoid_multicast = true,
             uint32_t initial_pdp_count = 5)
     {
+        ASSERT_FALSE(initialized_);
         matched_readers_.clear();
         matched_writers_.clear();
 
@@ -399,7 +400,9 @@ public:
         ASSERT_TRUE(subscriber_->is_enabled());
 
         // Create topic
-        topic_ = participant_->create_topic(topic_name_, type_->getName(), eprosima::fastdds::dds::TOPIC_QOS_DEFAULT);
+        topic_ =
+                participant_->create_topic(topic_name_, type_->getName(),
+                        eprosima::fastdds::dds::TOPIC_QOS_DEFAULT);
         ASSERT_NE(topic_, nullptr);
         ASSERT_TRUE(topic_->is_enabled());
 
@@ -416,7 +419,8 @@ public:
 
     bool create_additional_topics(
             size_t num_topics,
-            const char* suffix)
+            const char* suffix,
+            const eprosima::fastrtps::rtps::PropertySeq& writer_properties = eprosima::fastrtps::rtps::PropertySeq())
     {
         bool ret_val = initialized_;
         if (ret_val)
@@ -440,7 +444,9 @@ public:
                     break;
                 }
 
-                eprosima::fastdds::dds::DataWriter* datawriter = publisher_->create_datawriter(topic, datawriter_qos_,
+                eprosima::fastdds::dds::DataWriterQos dwqos = datawriter_qos_;
+                dwqos.properties().properties() = writer_properties;
+                eprosima::fastdds::dds::DataWriter* datawriter = publisher_->create_datawriter(topic, dwqos,
                                 &pub_listener_);
                 ret_val &= (nullptr != datawriter);
                 if (!ret_val)
@@ -516,9 +522,12 @@ public:
                 participant_->delete_topic(topic_);
                 topic_ = nullptr;
             }
-            DomainParticipantFactory::get_instance()->delete_participant(participant_);
+            ASSERT_EQ(DomainParticipantFactory::get_instance()->delete_participant(
+                        participant_), ReturnCode_t::RETCODE_OK);
             participant_ = nullptr;
         }
+
+        initialized_ = false;
     }
 
     void send(
@@ -530,8 +539,14 @@ public:
         {
             if (datawriter_->write((void*)&(*it)))
             {
+                for (auto& tuple : entities_extra_)
+                {
+                    std::get<1>(tuple)->write((void*)&(*it));
+                }
+
                 default_send_print<type>(*it);
                 it = msgs.erase(it);
+
             }
             else
             {
@@ -551,7 +566,7 @@ public:
     {
         mutex_.lock();
         total_msgs_ = msgs;
-        number_samples_expected_ = total_msgs_.size();
+        number_samples_expected_ = total_msgs_.size() + (total_msgs_.size() * entities_extra_.size());
         current_received_count_ = 0;
         mutex_.unlock();
 
@@ -767,6 +782,30 @@ public:
         return matched_readers_.size();
     }
 
+    PubSubWriterReader& add_throughput_controller_descriptor_to_pparams(
+            eprosima::fastdds::rtps::FlowControllerSchedulerPolicy scheduler_policy,
+            uint32_t bytesPerPeriod,
+            uint32_t periodInMs)
+    {
+        static const std::string flow_controller_name("MyFlowController");
+        auto new_flow_controller = std::make_shared<eprosima::fastdds::rtps::FlowControllerDescriptor>();
+        new_flow_controller->name = flow_controller_name.c_str();
+        new_flow_controller->scheduler = scheduler_policy;
+        new_flow_controller->max_bytes_per_period = bytesPerPeriod;
+        new_flow_controller->period_ms = static_cast<uint64_t>(periodInMs);
+        participant_qos_.flow_controllers().push_back(new_flow_controller);
+        datawriter_qos_.publish_mode().flow_controller_name = flow_controller_name.c_str();
+
+        return *this;
+    }
+
+    PubSubWriterReader& asynchronously(
+            const eprosima::fastrtps::PublishModeQosPolicyKind kind)
+    {
+        datawriter_qos_.publish_mode().kind = kind;
+        return *this;
+    }
+
 private:
 
     void receive_one(
@@ -784,14 +823,20 @@ private:
             std::unique_lock<std::mutex> lock(mutex_);
 
             // Check order of changes.
-            ASSERT_LT(last_seq, info.sample_identity.sequence_number());
-            last_seq = info.sample_identity.sequence_number();
+            if (datareader == datareader_)
+            {
+                ASSERT_LT(last_seq, info.sample_identity.sequence_number());
+                last_seq = info.sample_identity.sequence_number();
 
+                if (info.instance_state == eprosima::fastdds::dds::ALIVE_INSTANCE_STATE)
+                {
+                    auto it = std::find(total_msgs_.begin(), total_msgs_.end(), data);
+                    ASSERT_NE(it, total_msgs_.end());
+                    total_msgs_.erase(it);
+                }
+            }
             if (info.instance_state == eprosima::fastdds::dds::ALIVE_INSTANCE_STATE)
             {
-                auto it = std::find(total_msgs_.begin(), total_msgs_.end(), data);
-                ASSERT_NE(it, total_msgs_.end());
-                total_msgs_.erase(it);
                 ++current_received_count_;
                 default_receive_print<type>(data);
                 cv_.notify_one();

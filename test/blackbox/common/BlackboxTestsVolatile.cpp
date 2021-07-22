@@ -153,7 +153,8 @@ TEST_P(Volatile, AsyncVolatileKeepAllPubReliableSubNonReliable300Kb)
             resource_limits_allocated_samples(9).
             resource_limits_max_samples(9).
             asynchronously(eprosima::fastrtps::ASYNCHRONOUS_PUBLISH_MODE).
-            add_throughput_controller_descriptor_to_pparams(bytesPerPeriod, periodInMs).
+            add_throughput_controller_descriptor_to_pparams(
+        eprosima::fastdds::rtps::FlowControllerSchedulerPolicy::FIFO, bytesPerPeriod, periodInMs).
             init();
 
     ASSERT_TRUE(writer.isInitialized());

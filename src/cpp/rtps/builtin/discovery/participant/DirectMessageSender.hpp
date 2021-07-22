@@ -83,7 +83,7 @@ public:
      */
     virtual bool send(
             CDRMessage_t* message,
-            std::chrono::steady_clock::time_point& max_blocking_time_point) const override;
+            std::chrono::steady_clock::time_point max_blocking_time_point) const override;
 
 private:
 

@@ -24,10 +24,24 @@
 #endif // if HAVE_SQLITE3
 
 #include <fastdds/rtps/attributes/PropertyPolicy.h>
+#include <fastdds/rtps/history/WriterHistory.h>
 
 namespace eprosima {
 namespace fastrtps {
 namespace rtps {
+
+std::vector<CacheChange_t*>& IPersistenceService::get_changes(
+        WriterHistory* history)
+{
+    return history->m_changes;
+}
+
+void IPersistenceService::set_fragments(
+        WriterHistory* history,
+        CacheChange_t* change)
+{
+    history->set_fragments(change);
+}
 
 IPersistenceService* PersistenceFactory::create_persistence_service(
         const PropertyPolicy& property_policy)
@@ -64,5 +78,3 @@ IPersistenceService* PersistenceFactory::create_persistence_service(
 } /* namespace rtps */
 } /* namespace fastrtps */
 } /* namespace eprosima */
-
-

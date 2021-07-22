@@ -97,6 +97,9 @@ public:
             WriteParams &wparams));
     // *INDENT-ON*
 
+    MOCK_METHOD1(set_fragments, void(
+                CacheChange_t * change));
+
     bool remove_change(
             CacheChange_t* change)
     {
@@ -144,7 +147,7 @@ public:
         return m_changes.rend();
     }
 
-    inline RecursiveTimedMutex* getMutex()
+    RecursiveTimedMutex* getMutex()
     {
         return mp_mutex;
     }
@@ -167,4 +170,3 @@ public:
 } // namespace eprosima
 
 #endif // _FASTDDS_RTPS_WRITERHISTORY_H_
-

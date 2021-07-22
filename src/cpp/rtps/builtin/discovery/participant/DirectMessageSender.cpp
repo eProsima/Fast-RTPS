@@ -96,7 +96,7 @@ const std::vector<GUID_t>& DirectMessageSender::remote_guids() const
  */
 bool DirectMessageSender::send(
         CDRMessage_t* message,
-        std::chrono::steady_clock::time_point& max_blocking_time_point) const
+        std::chrono::steady_clock::time_point max_blocking_time_point) const
 {
     return participant_->sendSync(message, participant_->getGuid(),
                    Locators(locators_->begin()), Locators(locators_->end()), max_blocking_time_point);

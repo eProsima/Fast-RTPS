@@ -246,7 +246,7 @@ public:
     void send_acknack(
             const WriterProxy* writer,
             const SequenceNumberSet_t& sns,
-            const RTPSMessageSenderInterface& sender,
+            const RTPSMessageSenderInterface* sender,
             bool is_final);
 
     /**
@@ -257,7 +257,7 @@ public:
      */
     void send_acknack(
             const WriterProxy* writer,
-            const RTPSMessageSenderInterface& sender,
+            const RTPSMessageSenderInterface* sender,
             bool heartbeat_was_final);
 
     /**

@@ -29,6 +29,7 @@
 #include <fastrtps/utils/fixed_size_string.hpp>
 #include <fastdds/rtps/attributes/RTPSParticipantAllocationAttributes.hpp>
 #include <fastdds/rtps/attributes/ServerAttributes.h>
+#include <fastdds/rtps/flowcontrol/FlowControllerDescriptor.hpp>
 
 #include <memory>
 #include <sstream>
@@ -438,6 +439,8 @@ public:
  */
 class RTPSParticipantAttributes
 {
+    using FlowControllerDescriptorList = std::vector<std::shared_ptr<fastdds::rtps::FlowControllerDescriptor>>;
+
 public:
 
     RTPSParticipantAttributes()
@@ -467,8 +470,9 @@ public:
                (this->participantID == b.participantID) &&
                (this->throughputController == b.throughputController) &&
                (this->useBuiltinTransports == b.useBuiltinTransports) &&
-               (this->properties == b.properties &&
-               (this->prefix == b.prefix));
+               (this->properties == b.properties) &&
+               (this->prefix == b.prefix) &&
+               (this->flow_controllers == b.flow_controllers);
     }
 
     /**
@@ -541,6 +545,9 @@ public:
     {
         return name.c_str();
     }
+
+    //! Flow controllers.
+    FlowControllerDescriptorList flow_controllers;
 
 private:
 

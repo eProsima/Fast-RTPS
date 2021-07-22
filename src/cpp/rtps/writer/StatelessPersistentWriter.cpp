@@ -30,10 +30,11 @@ StatelessPersistentWriter::StatelessPersistentWriter(
         RTPSParticipantImpl* pimpl,
         const GUID_t& guid,
         const WriterAttributes& att,
+        fastdds::rtps::FlowController* flow_controller,
         WriterHistory* hist,
         WriterListener* listen,
         IPersistenceService* persistence)
-    : StatelessWriter(pimpl, guid, att, hist, listen)
+    : StatelessWriter(pimpl, guid, att, flow_controller, hist, listen)
     , PersistentWriter(guid, att, payload_pool_, change_pool_, hist, persistence)
 {
 }
@@ -43,10 +44,11 @@ StatelessPersistentWriter::StatelessPersistentWriter(
         const GUID_t& guid,
         const WriterAttributes& att,
         const std::shared_ptr<IPayloadPool>& payload_pool,
+        fastdds::rtps::FlowController* flow_controller,
         WriterHistory* hist,
         WriterListener* listen,
         IPersistenceService* persistence)
-    : StatelessWriter(pimpl, guid, att, payload_pool, hist, listen)
+    : StatelessWriter(pimpl, guid, att, payload_pool, flow_controller, hist, listen)
     , PersistentWriter(guid, att, payload_pool_, change_pool_, hist, persistence)
 {
 }
@@ -57,16 +59,18 @@ StatelessPersistentWriter::StatelessPersistentWriter(
         const WriterAttributes& att,
         const std::shared_ptr<IPayloadPool>& payload_pool,
         const std::shared_ptr<IChangePool>& change_pool,
+        fastdds::rtps::FlowController* flow_controller,
         WriterHistory* hist,
         WriterListener* listen,
         IPersistenceService* persistence)
-    : StatelessWriter(pimpl, guid, att, payload_pool, change_pool, hist, listen)
+    : StatelessWriter(pimpl, guid, att, payload_pool, change_pool, flow_controller, hist, listen)
     , PersistentWriter(guid, att, payload_pool_, change_pool_, hist, persistence)
 {
 }
 
 StatelessPersistentWriter::~StatelessPersistentWriter()
 {
+    deinit();
 }
 
 /*

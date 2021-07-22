@@ -135,7 +135,6 @@ DataWriterImpl::DataWriterImpl(
     , listener_(listen)
 #pragma warning (disable : 4355 )
     , writer_listener_(this)
-    , high_mark_for_frag_(0)
     , deadline_duration_us_(qos_.deadline().period.to_ns() * 1e-3)
     , lifespan_duration_us_(qos_.lifespan().duration.to_ns() * 1e-3)
 {
@@ -165,6 +164,7 @@ ReturnCode_t DataWriterImpl::enable()
     w_att.endpoint.unicastLocatorList = qos_.endpoint().unicast_locator_list;
     w_att.endpoint.remoteLocatorList = qos_.endpoint().remote_locator_list;
     w_att.mode = qos_.publish_mode().kind == SYNCHRONOUS_PUBLISH_MODE ? SYNCHRONOUS_WRITER : ASYNCHRONOUS_WRITER;
+    w_att.flow_controller_name = qos_.publish_mode().flow_controller_name;
     w_att.endpoint.properties = qos_.properties();
 
     if (qos_.endpoint().entity_id > 0)
@@ -280,32 +280,6 @@ ReturnCode_t DataWriterImpl::enable()
 
     // In case it has been loaded from the persistence DB, rebuild instances on history
     history_.rebuild_instances();
-
-    //TODO(Ricardo) This logic in a class. Then a user of rtps layer can use it.
-    if (high_mark_for_frag_ == 0)
-    {
-        RTPSParticipant* part = publisher_->rtps_participant();
-        uint32_t max_data_size = writer_->getMaxDataSize();
-        uint32_t writer_throughput_controller_bytes =
-                writer_->calculateMaxDataSize(qos_.throughput_controller().bytesPerPeriod);
-        uint32_t participant_throughput_controller_bytes =
-                writer_->calculateMaxDataSize(
-            part->getRTPSParticipantAttributes().throughputController.bytesPerPeriod);
-
-        high_mark_for_frag_ =
-                max_data_size > writer_throughput_controller_bytes ?
-                writer_throughput_controller_bytes :
-                (max_data_size > participant_throughput_controller_bytes ?
-                participant_throughput_controller_bytes :
-                max_data_size);
-        high_mark_for_frag_ &= ~3;
-    }
-
-    for (PublisherHistory::iterator it = history_.changesBegin(); it != history_.changesEnd(); it++)
-    {
-        WriteParams wparams;
-        set_fragment_size_on_change(wparams, *it, high_mark_for_frag_);
-    }
 
     deadline_timer_ = new TimedEvent(publisher_->get_participant()->get_resource_event(),
                     [&]() -> bool
@@ -727,7 +701,6 @@ ReturnCode_t DataWriterImpl::perform_create_new_change(
     if (ch != nullptr)
     {
         payload.move_into_change(*ch);
-        set_fragment_size_on_change(wparams, ch, high_mark_for_frag_);
 
         if (!this->history_.add_pub_change(ch, wparams, lock, max_blocking_time))
         {
@@ -1466,31 +1439,6 @@ DataWriterListener* DataWriterImpl::get_listener_for(
         return listener_;
     }
     return publisher_->get_listener_for(status);
-}
-
-void DataWriterImpl::set_fragment_size_on_change(
-        WriteParams& wparams,
-        CacheChange_t* ch,
-        const uint32_t& high_mark_for_frag)
-{
-    uint32_t final_high_mark_for_frag = high_mark_for_frag;
-
-    // If needed inlineqos for related_sample_identity, then remove the inlinqos size from final fragment size.
-    if (wparams.related_sample_identity() != SampleIdentity::unknown())
-    {
-        final_high_mark_for_frag -= (
-            ParameterSerializer<Parameter_t>::PARAMETER_SENTINEL_SIZE +
-            ParameterSerializer<Parameter_t>::PARAMETER_SAMPLE_IDENTITY_SIZE);
-    }
-
-    // If it is big data, fragment it.
-    if (ch->serializedPayload.length > final_high_mark_for_frag)
-    {
-        // Fragment the data.
-        // Set the fragment size to the cachechange.
-        ch->setFragmentSize(static_cast<uint16_t>(
-                    (std::min)(final_high_mark_for_frag, RTPSMessageGroup::get_max_fragment_payload_size())));
-    }
 }
 
 std::shared_ptr<IPayloadPool> DataWriterImpl::get_payload_pool()

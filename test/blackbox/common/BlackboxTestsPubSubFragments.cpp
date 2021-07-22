@@ -33,14 +33,16 @@ enum communication_type
     DATASHARING
 };
 
-class PubSubFragments : public testing::TestWithParam<communication_type>
+using test_params = std::tuple<communication_type, eprosima::fastdds::rtps::FlowControllerSchedulerPolicy>;
+
+class PubSubFragments : public testing::TestWithParam<test_params>
 {
 public:
 
     void SetUp() override
     {
         LibrarySettingsAttributes library_settings;
-        switch (GetParam())
+        switch (std::get<0>(GetParam()))
         {
             case INTRAPROCESS:
                 library_settings.intraprocess_delivery = IntraprocessDeliveryType::INTRAPROCESS_FULL;
@@ -53,12 +55,14 @@ public:
             default:
                 break;
         }
+
+        scheduler_policy_ = std::get<1>(GetParam());
     }
 
     void TearDown() override
     {
         LibrarySettingsAttributes library_settings;
-        switch (GetParam())
+        switch (std::get<0>(GetParam()))
         {
             case INTRAPROCESS:
                 library_settings.intraprocess_delivery = IntraprocessDeliveryType::INTRAPROCESS_OFF;
@@ -112,7 +116,8 @@ protected:
 
         if (asynchronous)
         {
-            writer.asynchronously(eprosima::fastrtps::ASYNCHRONOUS_PUBLISH_MODE);
+            writer.asynchronously(eprosima::fastrtps::ASYNCHRONOUS_PUBLISH_MODE).
+                    add_throughput_controller_descriptor_to_pparams(scheduler_policy_, 0, 0);
         }
 
         writer
@@ -148,6 +153,7 @@ protected:
         }
     }
 
+    eprosima::fastdds::rtps::FlowControllerSchedulerPolicy scheduler_policy_;
 };
 
 TEST_P(PubSubFragments, PubSubAsNonReliableData300kb)
@@ -294,7 +300,25 @@ TEST_P(PubSubFragments, AsyncPubSubAsReliableTransientLocalData300kbSmallFragmen
     do_fragment_test(TEST_TOPIC_NAME, data, true, true, false, false, true);
 }
 
-TEST_P(PubSubFragments, AsyncPubSubAsNonReliableData300kbWithFlowControl)
+class PubSubFragmentsLimited : public testing::TestWithParam<eprosima::fastdds::rtps::FlowControllerSchedulerPolicy>
+{
+public:
+
+    void SetUp() override
+    {
+        scheduler_policy_ = GetParam();
+    }
+
+    void TearDown() override
+    {
+    }
+
+protected:
+
+    eprosima::fastdds::rtps::FlowControllerSchedulerPolicy scheduler_policy_;
+};
+
+TEST_P(PubSubFragmentsLimited, AsyncPubSubAsNonReliableData300kbWithFlowControl)
 {
     PubSubReader<Data1mbType> reader(TEST_TOPIC_NAME);
     PubSubWriter<Data1mbType> writer(TEST_TOPIC_NAME);
@@ -311,7 +335,7 @@ TEST_P(PubSubFragments, AsyncPubSubAsNonReliableData300kbWithFlowControl)
     writer.history_depth(10).
             reliability(eprosima::fastrtps::BEST_EFFORT_RELIABILITY_QOS).
             asynchronously(eprosima::fastrtps::ASYNCHRONOUS_PUBLISH_MODE).
-            add_throughput_controller_descriptor_to_pparams(bytesPerPeriod, periodInMs).init();
+            add_throughput_controller_descriptor_to_pparams(scheduler_policy_, bytesPerPeriod, periodInMs).init();
 
     ASSERT_TRUE(writer.isInitialized());
 
@@ -331,7 +355,7 @@ TEST_P(PubSubFragments, AsyncPubSubAsNonReliableData300kbWithFlowControl)
     reader.block_for_at_least(2);
 }
 
-TEST_P(PubSubFragments, AsyncPubSubAsReliableData300kbWithFlowControl)
+TEST_P(PubSubFragmentsLimited, AsyncPubSubAsReliableData300kbWithFlowControl)
 {
     PubSubReader<Data1mbType> reader(TEST_TOPIC_NAME);
     PubSubWriter<Data1mbType> writer(TEST_TOPIC_NAME);
@@ -348,7 +372,7 @@ TEST_P(PubSubFragments, AsyncPubSubAsReliableData300kbWithFlowControl)
 
     writer.history_depth(5).
             asynchronously(eprosima::fastrtps::ASYNCHRONOUS_PUBLISH_MODE).
-            add_throughput_controller_descriptor_to_pparams(bytesPerPeriod, periodInMs).init();
+            add_throughput_controller_descriptor_to_pparams(scheduler_policy_, bytesPerPeriod, periodInMs).init();
 
     ASSERT_TRUE(writer.isInitialized());
 
@@ -369,7 +393,7 @@ TEST_P(PubSubFragments, AsyncPubSubAsReliableData300kbWithFlowControl)
     reader.block_for_all();
 }
 
-TEST(PubSubFragments, AsyncPubSubAsReliableData300kbInLossyConditions)
+TEST_P(PubSubFragmentsLimited, AsyncPubSubAsReliableData300kbInLossyConditions)
 {
     PubSubReader<Data1mbType> reader(TEST_TOPIC_NAME);
     PubSubWriter<Data1mbType> writer(TEST_TOPIC_NAME);
@@ -383,7 +407,7 @@ TEST(PubSubFragments, AsyncPubSubAsReliableData300kbInLossyConditions)
     // flow control not to overrun the receive buffer.
     uint32_t bytesPerPeriod = 300000;
     uint32_t periodInMs = 200;
-    writer.add_throughput_controller_descriptor_to_pparams(bytesPerPeriod, periodInMs);
+    writer.add_throughput_controller_descriptor_to_pparams(scheduler_policy_, bytesPerPeriod, periodInMs);
 
     // To simulate lossy conditions, we are going to remove the default
     // bultin transport, and instead use a lossy shim layer variant.
@@ -423,7 +447,7 @@ TEST(PubSubFragments, AsyncPubSubAsReliableData300kbInLossyConditions)
         testTransport->dropLogLength);
 }
 
-TEST(PubSubFragments, AsyncPubSubAsReliableVolatileData300kbInLossyConditions)
+TEST_P(PubSubFragmentsLimited, AsyncPubSubAsReliableVolatileData300kbInLossyConditions)
 {
     PubSubReader<Data1mbType> reader(TEST_TOPIC_NAME);
     PubSubWriter<Data1mbType> writer(TEST_TOPIC_NAME);
@@ -437,7 +461,7 @@ TEST(PubSubFragments, AsyncPubSubAsReliableVolatileData300kbInLossyConditions)
     // flow control not to overrun the receive buffer.
     uint32_t bytesPerPeriod = 300000;
     uint32_t periodInMs = 200;
-    writer.add_throughput_controller_descriptor_to_pparams(bytesPerPeriod, periodInMs);
+    writer.add_throughput_controller_descriptor_to_pparams(scheduler_policy_, bytesPerPeriod, periodInMs);
 
     // To simulate lossy conditions, we are going to remove the default
     // bultin transport, and instead use a lossy shim layer variant.
@@ -478,7 +502,7 @@ TEST(PubSubFragments, AsyncPubSubAsReliableVolatileData300kbInLossyConditions)
         testTransport->dropLogLength);
 }
 
-TEST(PubSubFragments, AsyncPubSubAsReliableData300kbInLossyConditionsSmallFragments)
+TEST_P(PubSubFragmentsLimited, AsyncPubSubAsReliableData300kbInLossyConditionsSmallFragments)
 {
     PubSubReader<Data1mbType> reader(TEST_TOPIC_NAME);
     PubSubWriter<Data1mbType> writer(TEST_TOPIC_NAME);
@@ -492,7 +516,7 @@ TEST(PubSubFragments, AsyncPubSubAsReliableData300kbInLossyConditionsSmallFragme
     // flow control not to overrun the receive buffer.
     uint32_t bytesPerPeriod = 300000;
     uint32_t periodInMs = 200;
-    writer.add_throughput_controller_descriptor_to_pparams(bytesPerPeriod, periodInMs);
+    writer.add_throughput_controller_descriptor_to_pparams(scheduler_policy_, bytesPerPeriod, periodInMs);
 
     // To simulate lossy conditions, we are going to remove the default
     // bultin transport, and instead use a lossy shim layer variant.
@@ -534,7 +558,7 @@ TEST(PubSubFragments, AsyncPubSubAsReliableData300kbInLossyConditionsSmallFragme
         testTransport->dropLogLength);
 }
 
-TEST(PubSubFragments, AsyncPubSubAsReliableVolatileData300kbInLossyConditionsSmallFragments)
+TEST_P(PubSubFragmentsLimited, AsyncPubSubAsReliableVolatileData300kbInLossyConditionsSmallFragments)
 {
     PubSubReader<Data1mbType> reader(TEST_TOPIC_NAME);
     PubSubWriter<Data1mbType> writer(TEST_TOPIC_NAME);
@@ -548,7 +572,7 @@ TEST(PubSubFragments, AsyncPubSubAsReliableVolatileData300kbInLossyConditionsSma
     // flow control not to overrun the receive buffer.
     uint32_t bytesPerPeriod = 300000;
     uint32_t periodInMs = 200;
-    writer.add_throughput_controller_descriptor_to_pparams(bytesPerPeriod, periodInMs);
+    writer.add_throughput_controller_descriptor_to_pparams(scheduler_policy_, bytesPerPeriod, periodInMs);
 
     // To simulate lossy conditions, we are going to remove the default
     // bultin transport, and instead use a lossy shim layer variant.
@@ -591,7 +615,7 @@ TEST(PubSubFragments, AsyncPubSubAsReliableVolatileData300kbInLossyConditionsSma
         testTransport->dropLogLength);
 }
 
-TEST(PubSubFragments, AsyncFragmentSizeTest)
+TEST_P(PubSubFragmentsLimited, AsyncFragmentSizeTest)
 {
     // ThroghputController size large than maxMessageSize.
     {
@@ -607,7 +631,7 @@ TEST(PubSubFragments, AsyncFragmentSizeTest)
         // flow control not to overrun the receive buffer.
         uint32_t size = 32536;
         uint32_t periodInMs = 500;
-        writer.add_throughput_controller_descriptor_to_pparams(size, periodInMs);
+        writer.add_throughput_controller_descriptor_to_pparams(scheduler_policy_, size, periodInMs);
 
         auto testTransport = std::make_shared<UDPv4TransportDescriptor>();
         testTransport->maxMessageSize = 32000;
@@ -653,7 +677,7 @@ TEST(PubSubFragments, AsyncFragmentSizeTest)
         // flow control not to overrun the receive buffer.
         uint32_t size = 32000;
         uint32_t periodInMs = 500;
-        writer.add_throughput_controller_descriptor_to_pparams(size, periodInMs);
+        writer.add_throughput_controller_descriptor_to_pparams(scheduler_policy_, size, periodInMs);
 
         auto testTransport = std::make_shared<UDPv4TransportDescriptor>();
         testTransport->maxMessageSize = 32536;
@@ -687,7 +711,6 @@ TEST(PubSubFragments, AsyncFragmentSizeTest)
     }
 }
 
-
 #ifdef INSTANTIATE_TEST_SUITE_P
 #define GTEST_INSTANTIATE_TEST_MACRO(x, y, z, w) INSTANTIATE_TEST_SUITE_P(x, y, z, w)
 #else
@@ -696,20 +719,71 @@ TEST(PubSubFragments, AsyncFragmentSizeTest)
 
 GTEST_INSTANTIATE_TEST_MACRO(PubSubFragments,
         PubSubFragments,
-        testing::Values(TRANSPORT, INTRAPROCESS, DATASHARING),
+        testing::Combine(
+            testing::Values(TRANSPORT, INTRAPROCESS, DATASHARING),
+            testing::Values(
+                eprosima::fastdds::rtps::FlowControllerSchedulerPolicy::FIFO,
+                eprosima::fastdds::rtps::FlowControllerSchedulerPolicy::ROUND_ROBIN,
+                eprosima::fastdds::rtps::FlowControllerSchedulerPolicy::HIGH_PRIORITY,
+                eprosima::fastdds::rtps::FlowControllerSchedulerPolicy::PRIORITY_WITH_RESERVATION
+                )),
         [](const testing::TestParamInfo<PubSubFragments::ParamType>& info)
         {
-            switch (info.param)
+            std::string suffix;
+            switch (std::get<1>(info.param))
             {
-                case INTRAPROCESS:
-                    return "Intraprocess";
+                case eprosima::fastdds::rtps::FlowControllerSchedulerPolicy::PRIORITY_WITH_RESERVATION:
+                    suffix = "_SCHED_RESERV";
                     break;
-                case DATASHARING:
-                    return "Datasharing";
+                case eprosima::fastdds::rtps::FlowControllerSchedulerPolicy::HIGH_PRIORITY:
+                    suffix = "_SCHED_HIGH";
                     break;
-                case TRANSPORT:
+                case eprosima::fastdds::rtps::FlowControllerSchedulerPolicy::ROUND_ROBIN:
+                    suffix = "_SCHED_ROBIN";
+                    break;
+                case eprosima::fastdds::rtps::FlowControllerSchedulerPolicy::FIFO:
                 default:
-                    return "Transport";
+                    suffix = "_SCHED_FIFO";
             }
 
+            switch (std::get<0>(info.param))
+            {
+                case INTRAPROCESS:
+                    return "Intraprocess" + suffix;
+                case DATASHARING:
+                    return "Datasharing" + suffix;
+                case TRANSPORT:
+                default:
+                    return "Transport" + suffix;
+            }
+        });
+
+GTEST_INSTANTIATE_TEST_MACRO(PubSubFragmentsLimited,
+        PubSubFragmentsLimited,
+        testing::Values(
+            eprosima::fastdds::rtps::FlowControllerSchedulerPolicy::FIFO,
+            eprosima::fastdds::rtps::FlowControllerSchedulerPolicy::ROUND_ROBIN,
+            eprosima::fastdds::rtps::FlowControllerSchedulerPolicy::HIGH_PRIORITY,
+            eprosima::fastdds::rtps::FlowControllerSchedulerPolicy::PRIORITY_WITH_RESERVATION
+            ),
+        [](const testing::TestParamInfo<PubSubFragmentsLimited::ParamType>& info)
+        {
+            std::string suffix;
+            switch (info.param)
+            {
+                case eprosima::fastdds::rtps::FlowControllerSchedulerPolicy::PRIORITY_WITH_RESERVATION:
+                    suffix = "_SCHED_RESERV";
+                    break;
+                case eprosima::fastdds::rtps::FlowControllerSchedulerPolicy::HIGH_PRIORITY:
+                    suffix = "_SCHED_HIGH";
+                    break;
+                case eprosima::fastdds::rtps::FlowControllerSchedulerPolicy::ROUND_ROBIN:
+                    suffix = "_SCHED_ROBIN";
+                    break;
+                case eprosima::fastdds::rtps::FlowControllerSchedulerPolicy::FIFO:
+                default:
+                    suffix = "_SCHED_FIFO";
+            }
+
+            return "Transport" + suffix;
         });

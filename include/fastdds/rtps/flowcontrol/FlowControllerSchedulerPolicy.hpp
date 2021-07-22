@@ -31,8 +31,8 @@ enum class FlowControllerSchedulerPolicy : int32_t
 {
     //! FIFO scheduler policy: first written sample by user, first sample scheduled to be sent to network.
     FIFO,
-    //! Round Robind scheduler policy: schedules one sample of each DataWriter in circular order.
-    ROUND_ROBLIN,
+    //! Round Robin scheduler policy: schedules one sample of each DataWriter in circular order.
+    ROUND_ROBIN,
     //! High priority scheduler policy: samples with highest priority are scheduled first to be sent to network.
     HIGH_PRIORITY,
     //! Priority with reservation scheduler policy: guarantee each DataWriter's minimum reservation of throughput.

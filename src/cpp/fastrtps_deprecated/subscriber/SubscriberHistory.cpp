@@ -45,7 +45,7 @@ static void get_sample_info(
     info->sample_identity.writer_guid(change->writerGUID);
     info->sample_identity.sequence_number(change->sequenceNumber);
     info->sourceTimestamp = change->sourceTimestamp;
-    info->receptionTimestamp = change->receptionTimestamp;
+    info->receptionTimestamp = change->reader_info.receptionTimestamp;
     info->ownershipStrength = ownership_strength;
     info->iHandle = change->instanceHandle;
     info->related_sample_identity = change->write_params.sample_identity();

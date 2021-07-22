@@ -24,6 +24,8 @@
 #include <fastrtps/rtps/Endpoint.h>
 #include <fastrtps/rtps/common/CacheChange.h>
 #include <fastdds/rtps/messages/RTPSMessageGroup.h>
+#include <fastdds/rtps/writer/DeliveryRetCode.hpp>
+#include <fastdds/rtps/writer/LocatorSelectorSender.hpp>
 
 #include <condition_variable>
 #include <gmock/gmock.h>
@@ -39,16 +41,32 @@ class RTPSWriter : public Endpoint
 {
 public:
 
+    RTPSWriter()
+    {
+        static uint8_t entity_id = 0;
+        // Generate a guid.
+        m_guid.entityId.value[3] = ++entity_id;
+    }
+
     virtual ~RTPSWriter() = default;
 
     virtual bool matched_reader_add(
-            const ReaderProxyData& ratt) = 0;
+            const ReaderProxyData&)
+    {
+        return false;
+    }
 
     virtual bool matched_reader_remove(
-            const GUID_t& ratt) = 0;
+            const GUID_t&)
+    {
+        return false;
+    }
 
     virtual bool matched_reader_is_matched(
-            const GUID_t& rguid) = 0;
+            const GUID_t&)
+    {
+        return false;
+    }
 
     WriterListener* getListener() const
     {
@@ -81,8 +99,6 @@ public:
 #endif // FASTDDS_STATISTICS
 
     // *INDENT-OFF* Uncrustify makes a mess with MOCK_METHOD macros
-    MOCK_CONST_METHOD0(getGuid, const GUID_t& ());
-
     MOCK_METHOD3(new_change, CacheChange_t* (
             const std::function<uint32_t()>&,
             ChangeKind_t,
@@ -111,7 +127,29 @@ public:
     MOCK_CONST_METHOD0(get_liveliness_kind, const LivelinessQosPolicyKind& ());
 
     MOCK_CONST_METHOD0(get_liveliness_lease_duration, const Duration_t& ());
+
+    MOCK_METHOD4(deliver_sample_nts, DeliveryRetCode(
+            CacheChange_t*,
+            RTPSMessageGroup&,
+            LocatorSelectorSender&,
+            const std::chrono::time_point<std::chrono::steady_clock>&));
+
+    MOCK_METHOD3(send_nts, bool(
+            CDRMessage_t*,
+            const LocatorSelectorSender&,
+            std::chrono::steady_clock::time_point&));
+
     // *INDENT-ON*
+
+    const GUID_t& getGuid() const
+    {
+        return m_guid;
+    }
+
+    EndpointAttributes& getAttributes()
+    {
+        return m_att.endpoint;
+    }
 
     virtual void updateAttributes(
             const WriterAttributes&)
@@ -189,14 +227,29 @@ public:
         return writer_guid == m_guid;
     }
 
+    LocatorSelectorSender& get_general_locator_selector()
+    {
+        return general_locator_selector_;
+    }
+
+    LocatorSelectorSender& get_async_locator_selector()
+    {
+        return async_locator_selector_;
+    }
+
     WriterHistory* history_;
 
     WriterListener* listener_;
 
-    const GUID_t m_guid;
+    GUID_t m_guid;
+
+    WriterAttributes m_att;
 
     LivelinessLostStatus liveliness_lost_status_;
 
+    LocatorSelectorSender general_locator_selector_ = LocatorSelectorSender(*this, ResourceLimitedContainerConfig());
+
+    LocatorSelectorSender async_locator_selector_ = LocatorSelectorSender(*this, ResourceLimitedContainerConfig());
 };
 
 } // namespace rtps

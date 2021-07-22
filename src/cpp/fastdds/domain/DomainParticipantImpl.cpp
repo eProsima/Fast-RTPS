@@ -99,6 +99,7 @@ static void set_attributes_from_qos(
     attr.sendSocketBufferSize = qos.transport().send_socket_buffer_size;
     attr.listenSocketBufferSize = qos.transport().listen_socket_buffer_size;
     attr.userData = qos.user_data().data_vec();
+    attr.flow_controllers = qos.flow_controllers();
 }
 
 static void set_qos_from_attributes(

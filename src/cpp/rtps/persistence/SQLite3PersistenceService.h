@@ -55,7 +55,7 @@ public:
     bool load_writer_from_storage(
             const std::string& persistence_guid,
             const GUID_t& writer_guid,
-            std::vector<CacheChange_t*>& changes,
+            WriterHistory* history,
             const std::shared_ptr<IChangePool>& change_pool,
             const std::shared_ptr<IPayloadPool>& payload_pool,
             SequenceNumber_t& next_sequence) final;

@@ -23,6 +23,8 @@
 #include <fastdds/rtps/common/FragmentNumber.h>
 #include <fastdds/rtps/common/SequenceNumber.h>
 
+#include <cassert>
+
 namespace eprosima {
 namespace fastrtps {
 namespace rtps {
@@ -52,17 +54,11 @@ class ChangeForReader_t
 
 public:
 
-    ChangeForReader_t()
-        : status_(UNSENT)
-        , is_relevant_(true)
-        , change_(nullptr)
-    {
-    }
+    ChangeForReader_t() = delete;
 
     ChangeForReader_t(
             const ChangeForReader_t& ch)
         : status_(ch.status_)
-        , is_relevant_(ch.is_relevant_)
         , seq_num_(ch.seq_num_)
         , change_(ch.change_)
         , unsent_fragments_(ch.unsent_fragments_)
@@ -74,7 +70,6 @@ public:
     ChangeForReader_t(
             CacheChange_t* change)
         : status_(UNSENT)
-        , is_relevant_(true)
         , seq_num_(change->sequenceNumber)
         , change_(change)
     {
@@ -85,15 +80,6 @@ public:
         }
     }
 
-    ChangeForReader_t(
-            const SequenceNumber_t& seq_num)
-        : status_(UNSENT)
-        , is_relevant_(true)
-        , seq_num_(seq_num)
-        , change_(nullptr)
-    {
-    }
-
     ~ChangeForReader_t()
     {
     }
@@ -102,7 +88,6 @@ public:
             const ChangeForReader_t& ch)
     {
         status_ = ch.status_;
-        is_relevant_ = ch.is_relevant_;
         seq_num_ = ch.seq_num_;
         change_ = ch.change_;
         unsent_fragments_ = ch.unsent_fragments_;
@@ -113,8 +98,6 @@ public:
      * Get the cache change
      * @return Cache change
      */
-    // TODO(Ricardo) Temporal
-    //const CacheChange_t* getChange() const
     CacheChange_t* getChange() const
     {
         return change_;
@@ -131,33 +114,19 @@ public:
         return status_;
     }
 
-    void setRelevance(
-            const bool relevance)
-    {
-        is_relevant_ = relevance;
-    }
-
-    bool isRelevant() const
-    {
-        return is_relevant_;
-    }
-
     const SequenceNumber_t getSequenceNumber() const
     {
         return seq_num_;
     }
 
-    //! Set change as not valid
-    void notValid()
+    FragmentNumber_t get_next_unsent_fragment() const
     {
-        is_relevant_ = false;
-        change_ = nullptr;
-    }
+        if (unsent_fragments_.empty())
+        {
+            return change_->getFragmentCount() + 1;
+        }
 
-    //! Set change as valid
-    bool isValid() const
-    {
-        return change_ != nullptr;
+        return unsent_fragments_.min();
     }
 
     FragmentNumberSet_t getUnsentFragments() const
@@ -167,7 +136,9 @@ public:
 
     void markAllFragmentsAsUnsent()
     {
-        if (change_ != nullptr && change_->getFragmentSize() != 0)
+        assert(nullptr != change_);
+
+        if (change_->getFragmentSize() != 0)
         {
             unsent_fragments_.base(1u);
             unsent_fragments_.add_range(1u, change_->getFragmentCount() + 1u);
@@ -210,22 +181,30 @@ public:
             });
     }
 
+    bool has_been_delivered() const
+    {
+        return delivered_;
+    }
+
+    void set_delivered()
+    {
+        delivered_ = true;
+    }
+
 private:
 
     //!Status
     ChangeForReaderStatus_t status_;
 
-    //!Boolean specifying if this change is relevant
-    bool is_relevant_;
-
     //!Sequence number
     SequenceNumber_t seq_num_;
 
-    // TODO(Ricardo) Temporal
-    //const CacheChange_t* change_;
     CacheChange_t* change_;
 
     FragmentNumberSet_t unsent_fragments_;
+
+    //! Indicates if was delivered at least one time.
+    bool delivered_ = false;
 };
 
 struct ChangeForReaderCmp
