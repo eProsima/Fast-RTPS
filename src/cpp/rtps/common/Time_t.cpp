@@ -135,14 +135,14 @@ Time_t::Time_t(
         long double sec)
 {
     seconds_ = static_cast<int32_t>(sec);
-    set_fraction(static_cast<uint32_t>((sec - seconds_) * C_FRACTIONS_PER_SEC));
+    set_nanosec(static_cast<uint32_t>((sec - seconds_) * C_NANOSECONDS_PER_SEC));
 }
 
 Time_t::Time_t(
         const eprosima::fastrtps::Time_t& time)
 {
     seconds_ = time.seconds;
-    set_nanosec(time.nanosec);
+    set_fraction(time.fraction());
 }
 
 int64_t Time_t::to_ns() const

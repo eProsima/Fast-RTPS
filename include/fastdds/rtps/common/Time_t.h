@@ -362,7 +362,15 @@ inline std::ostream& operator <<(
         std::ostream& output,
         const Time_t& t)
 {
-    return output << t.seconds() << "." << t.nanosec();
+    std::string nano_st = std::to_string(t.nanosec());
+    nano_st.insert(0, 9 - nano_st.length(), '0');
+
+    while (nano_st.length() > 1 && nano_st.at(nano_st.length() - 1) == '0')
+    {
+        nano_st.pop_back();
+    }
+
+    return output << t.seconds() << "." << nano_st;
 }
 
 inline std::istream& operator >>(
@@ -375,7 +383,8 @@ inline std::istream& operator >>(
     {
         char point;
         int32_t sec = 0;
-        int32_t nano = 0;
+        std::string nano_st;
+        uint32_t nano = 0;
         std::ios_base::iostate excp_mask = input.exceptions();
 
         try
@@ -383,11 +392,23 @@ inline std::istream& operator >>(
             input.exceptions(excp_mask | std::ios_base::failbit | std::ios_base::badbit);
 
             input >> sec;
-            input >> point >> nano;
-            // nano could not be bigger than 1 sec
-            if ( point != '.' || nano > 1000000000 )
+            input >> point >> nano_st;
+            if (point != '.')
             {
                 input.setstate(std::ios_base::failbit);
+            }
+
+            nano = static_cast<uint32_t>(std::stoul(nano_st));
+
+            if (nano > 1000000000ULL)
+            {
+                input.setstate(std::ios_base::failbit);
+            }
+
+            // manual power operation
+            for (int i = nano_st.length(); i < 9; i++)
+            {
+                nano *= 10;
             }
         }
         catch (std::ios_base::failure& )
