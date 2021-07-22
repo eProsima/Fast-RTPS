@@ -184,7 +184,6 @@ TEST_F(IPLocatorTests, setIPv6_from_string_empty)
     {
         "::",
         "::0",
-        "0000000::",
         "0::0",
         "0:0:0:0::0:0",
         "0000::0000",
@@ -344,6 +343,133 @@ TEST_F(IPLocatorTests, setIPv6_from_string_invalid)
     // Change to IPv4
     locator.kind = LOCATOR_KIND_UDPv4;
     ASSERT_FALSE(IPLocator::setIPv4(locator, "::1"));
+}
+
+
+/*
+ * Check isIPv4 method by correct and incorrect IPv4
+ */
+TEST_F(IPLocatorTests, isIPv4)
+{
+    // Valid strings for IPv4
+    std::vector<std::string> correct_ipv4
+    {
+        "127.0.0.1",
+        "0.0.0.0",
+        "255.255.255.255",
+        "192.168.1.254"
+    };
+
+    for (const std::string& ipv4 : correct_ipv4)
+    {
+        bool isIPv4_result = IPLocator::isIPv4(ipv4);
+        EXPECT_TRUE(isIPv4_result) << "Unexpected negative in isIPv4 for case: " << ipv4;
+    }
+
+    // Not valid strings for IPv4
+    std::vector<std::string> incorrect_ipv4
+    {
+        "::",
+        "::1",
+        "192.168.1",
+        "192.168.1.256",
+        "www",
+        "www.eprosima.com",
+        "localhost"
+    };
+
+    for (const std::string& ipv4 : incorrect_ipv4)
+    {
+        bool isIPv4_result = IPLocator::isIPv4(ipv4);
+        EXPECT_FALSE(isIPv4_result) << "Unexpected positive in isIPv4 for case: " << ipv4;
+    }
+}
+
+/*
+ * Check isIPv6 method by correct and incorrect IPv6
+ */
+TEST_F(IPLocatorTests, isIPv6)
+{
+    // Valid strings for IPv6
+    std::vector<std::string> correct_ipv6
+    {
+        "::1",
+        "0:0::0:0001",
+        "0000:0203:0000:0607:0000:0000:0c0d:0000",
+        "0:203:0:607:0:0:c0d:0",
+        "0000:203:0:0607:000:0:c0d:00",
+        "::203:0:607:0:0:c0d:0",
+        "0:203:0:607:0:0:c0d::",
+        "0:203::607:0:0:c0d:0",
+        "0:203:0:607::c0d:0",
+        "0:203:0:607::C0D:0",
+        "::",
+        "::0",
+        "0::0",
+        "0:0:0:0::0:0",
+        "0000::0000",
+        "0000:0000:0000:0000:0000:0000:0000:0000",
+        "::1%interface",
+        "0:0::0:0001%interface",
+        "0000:0203:0000:0607:0000:0000:0c0d:0000%interface",
+        "0:203:0:607:0:0:c0d:0%interface",
+        "0000:203:0:0607:000:0:c0d:00%interface",
+        "::203:0:607:0:0:c0d:0%interface",
+        "0:203:0:607:0:0:c0d::%interface",
+        "0:203::607:0:0:c0d:0%interface",
+        "0:203:0:607::c0d:0%interface",
+        "0:203:0:607::C0D:0%interface",
+        "::%interface",
+        "::0%interface",
+        "0::0%interface",
+        "0:0:0:0::0:0%interface",
+        "0000::0000%interface",
+        "0000:0000:0000:0000:0000:0000:0000:0000%interface",
+    };
+
+    for (const std::string& ipv6 : correct_ipv6)
+    {
+        bool isIPv6_result = IPLocator::isIPv6(ipv6);
+        EXPECT_TRUE(isIPv6_result) << "Unexpected negative in isIPv6 for case: " << ipv6;
+    }
+
+    // Not valid strings for IPv6
+    std::vector<std::string> incorrect_ipv6
+    {
+        ":",
+        "::1:",
+        ":1::",
+        "::1::",
+        "1::1::1",
+        "1:::1",
+        "1:1:1:1:1:1:1:1:1",
+        "1:1:1:1:1:1:1::1",
+        "::::",
+        ":1:",
+        ":1:0:0:0:0:0:0",
+        "1:0:0:0:0:0:1:",
+        "0000000::",
+        "10000::",
+        "::10000",
+        "1:10000::1",
+        "1:10000:0:0:0:0:0:1",
+        "1::0:10000:0:1",
+        "ABZ::",
+        "::ABZ",
+        "1:ABZ::1",
+        "1:ABZ:0:0:0:0:0:1",
+        "1::0:ABZ:0:1",
+        "1:10::10:1,",
+        "www",
+        "www.eprosima.com",
+        "localhost"
+    };
+
+    for (const std::string& ipv6 : incorrect_ipv6)
+    {
+        bool isIPv6_result = IPLocator::isIPv6(ipv6);
+        EXPECT_FALSE(isIPv6_result) << "Unexpected positive in isIPv6 for case: " << ipv6;
+    }
 }
 
 /*
@@ -1652,6 +1778,115 @@ TEST(LocatorListComparisonTests, locatorList_comparison)
     locator_list_2.push_back(locator);
 
     ASSERT_FALSE(locator_list_1 == locator_list_2);
+}
+
+/************
+* DNS Tests *
+************/
+
+static const std::map<std::string, std::pair<std::set<std::string>, std::set<std::string>>> addresses =
+    {
+        {"localhost.test", {{"127.0.0.1"}, {"::1"}}},
+        {"www.eprosima.com.test", {{"154.56.134.194"}, {}}},     // Only IPv4
+        {"www.acme.com.test", {{"216.58.215.164"}, {"2a00:1450:400e:803::2004"}}},
+        {"www.foo.com.test", {{"140.82.121.4", "140.82.121.3"}, {}}},
+        {"acme.org.test", {{}, {"2605:bc80:3010:104::8cd3:962"}}}     // Only IPv6
+    };
+
+/*
+ * Check DNS name resolve function
+ *
+ * Each DNS could resolve each domain with different IPs.
+ * This test creates a set of the possible IPs for each of the domains tried.
+ * In case one of the IPs is correct, the domains is set as found and the test past to it.
+ */
+TEST(LocatorDNSTests, resolve_name)
+{
+    for (auto const& address : addresses)
+    {
+        bool found_at_least_one = false;
+        std::pair<std::set<std::string>, std::set<std::string>> dns_result;
+
+        dns_result = IPLocator::resolveNameDNS(address.first);
+
+        for (auto ipv4 : address.second.first)
+        {
+            if (dns_result.first.find(ipv4) != dns_result.first.end())
+            {
+                found_at_least_one = true;
+                break;
+            }
+        }
+
+        if (!found_at_least_one)
+        {
+            for (auto ipv6 : address.second.second)
+            {
+                if (dns_result.second.find(ipv6) != dns_result.second.end())
+                {
+                    found_at_least_one = true;
+                    break;
+                }
+            }
+        }
+
+        // If it arrives here is that any correct ip has been found for one case
+        EXPECT_TRUE(found_at_least_one) << "IP not found for domain: " << address.first;
+    }
+}
+
+/*
+    This test uses the DNS and IPs of the `resolve_name` test
+    to check that the locators are correctly formed
+ */
+TEST(LocatorDNSTests, dns_locator)
+{
+    auto checker = [](
+            int32_t kind,
+            const std::string& dns,
+            const std::string& ip)
+        {
+            std::string type;
+            if (kind == LOCATOR_KIND_TCPv4)
+            {
+                type = "TCPv4";
+            }
+            else if (kind == LOCATOR_KIND_TCPv6)
+            {
+                type = "TCPv6";
+            }
+            else
+            {
+                FAIL() << "Unsupported locator kind for this tests";
+            }
+
+            std::stringstream ss_dns;
+            ss_dns << type << ":[" << dns << "]:1024";
+            Locator_t locator;
+            ss_dns >> locator;
+            if (ip.empty())
+            {
+                EXPECT_EQ(LOCATOR_KIND_INVALID, locator.kind) << "Invalid kind " << locator.kind
+                        << " for locator " << ss_dns.str();
+            }
+            else
+            {
+                std::stringstream ss_address;
+                ss_address << type << ":[" << ip << "]:1024";
+                std::stringstream ss_locator;
+                ss_locator << locator;
+                EXPECT_EQ(ss_address.str(), ss_locator.str()) << "Wrong translation " << ss_locator.str()
+                        << " for locator " << ss_dns.str();
+            }
+        };
+
+    for (auto const& address : addresses)
+    {
+        checker(LOCATOR_KIND_TCPv4, address.first,
+                address.second.first.empty() ? "" : *address.second.first.begin());
+        checker(LOCATOR_KIND_TCPv6, address.first,
+                address.second.second.empty() ? "" : *address.second.second.begin());
+    }
 }
 
 int main(

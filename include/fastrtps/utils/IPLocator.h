@@ -23,8 +23,10 @@
 #include <fastdds/rtps/common/Types.h>
 #include <fastdds/dds/log/Log.hpp>
 
-#include <vector>
+#include <regex>
+#include <set>
 #include <string>
+#include <vector>
 
 namespace eprosima {
 namespace fastrtps {
@@ -258,6 +260,17 @@ public:
     RTPS_DllAPI static bool isMulticast(
             const Locator_t& locator);
 
+    //! Resolve an address name by a DNS request and return the IP that this address references by a DNS server
+    RTPS_DllAPI static std::pair<std::set<std::string>, std::set<std::string>> resolveNameDNS(
+            const std::string& address_name);
+
+    //! Check whether a string contains an IPv4 format
+    RTPS_DllAPI static bool isIPv4(
+            const std::string& address);
+    //! Check whether a string contains an IPv6 format
+    RTPS_DllAPI static bool isIPv6(
+            const std::string& address);
+
 protected:
 
     // Checks if the locator address is equal to 0
@@ -278,7 +291,6 @@ private:
 
     IPLocator() = delete;
     ~IPLocator() = delete;
-
 };
 
 } // namespace rtps

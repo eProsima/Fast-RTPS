@@ -17,12 +17,21 @@
  *
  */
 
+#include <regex>
+#include <set>
+
+#include <asio.hpp>
+
 #include <fastrtps/utils/IPLocator.h>
 #include <fastrtps/utils/IPFinder.h>
 
 namespace eprosima {
 namespace fastrtps {
 namespace rtps {
+
+static const std::regex IPv4_REGEX("^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}"
+        "(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
+static const std::regex IPv6_QUARTET_REGEX("^(?:[A-Fa-f0-9]){0,4}$");
 
 // Factory
 void IPLocator::createLocator(
@@ -964,6 +973,11 @@ bool IPLocator::isEmpty(
 bool IPLocator::IPv6isCorrect(
         const std::string& ipv6)
 {
+    // IPv6 addresses may have the interface ID added as in 'fe80::92f0:f536:e3cc:11c6%wlp2s0'
+    std::string::size_type pos;
+    pos = ipv6.find('%');
+    std::string address = ipv6.substr(0, pos);
+
     /* An incorrect IPv6 format could be because:
      *  1. it has not ':' - bad format
      *  2. it has just one ':' - not enough info
@@ -973,7 +987,7 @@ bool IPLocator::IPv6isCorrect(
      *  6. it starts with ':' - it must be doble ("::") - bad format
      *  7. it ends with ':' - it must be doble ("::") - bad format
      * */
-    std::ptrdiff_t count = std::count_if( ipv6.begin(), ipv6.end(), []( char c )
+    std::ptrdiff_t count = std::count_if( address.begin(), address.end(), []( char c )
                     {
                         return c == ':';
                     });
@@ -985,31 +999,54 @@ bool IPLocator::IPv6isCorrect(
     }
 
     // only case of 8 : is with a :: at the beginning or end
-    if (count == 8 && (ipv6.front() != ':' && ipv6.back() != ':'))
+    if (count == 8 && (address.front() != ':' && address.back() != ':'))
     {
         return false;
     }
 
     // only one :: is allowed
-    size_t ind = ipv6.find("::");
+    size_t ind = address.find("::");
     if (ind != std::string::npos)
     {
-        if (ipv6.find("::", ind + 1) != std::string::npos)
+        if (address.find("::", ind + 1) != std::string::npos)
         {
             return false;
         }
     }
 
     // does not start with only one ':'
-    if (ipv6.front() == ':' && ipv6.at(1) != ':')
+    if (address.front() == ':' && address.at(1) != ':')
     {
         return false;
     }
 
     // does not end with only one ':'
-    if (ipv6.back() == ':' && ipv6.at(ipv6.size() - 2) != ':')
+    if (address.back() == ':' && address.at(address.size() - 2) != ':')
     {
         return false;
+    }
+
+    // every number inside must not exceed ffff
+    // do not accept any IPv6 with non valid characters
+    std::stringstream s(address);
+
+    // If we counted X ':', we have to process X+1 quartets
+    while (count-- >= 0)
+    {
+        std::stringbuf sb_value;
+        char punct;
+        s.get(sb_value, ':');
+        if (!std::regex_match(sb_value.str(), IPv6_QUARTET_REGEX))
+        {
+            return false;
+        }
+        if (sb_value.str().empty())
+        {
+            // If nothing was copied to the output (for example, with '::'), failbit is set
+            s.clear();
+        }
+        // Get ':'
+        s >> punct;
     }
 
     return true;
@@ -1027,6 +1064,70 @@ bool IPLocator::setIPv4address(
     }
     LOCATOR_ADDRESS_INVALID(destlocator.address);
     return false;
+}
+
+std::pair<std::set<std::string>, std::set<std::string>> IPLocator::resolveNameDNS(
+        const std::string& address_name)
+{
+    // Using code from
+    // https://subscription.packtpub.com/book/application_development/9781783986545/1/ch01lvl1sec13/resolving-a-dns-name
+
+    std::set<std::string> ipv4_results;
+    std::set<std::string> ipv6_results;
+
+    // Create an instance of io service
+    asio::io_service ios;
+
+    //Create a query to make the DNS petition
+    asio::ip::tcp::resolver::query resolver_query(address_name, "", asio::ip::tcp::resolver::query::numeric_service);
+
+    // Create a resolver instance
+    asio::ip::tcp::resolver resolver(ios);
+
+    // Used to store information about error that happens during the resolution process.
+    asio::error_code ec;
+
+    // Make the DNS petition
+    asio::ip::tcp::resolver::iterator it =
+            resolver.resolve(resolver_query, ec);
+
+    // Handling errors if any.
+    if (ec)
+    {
+        // Failed to resolve the DNS name. Breaking execution.
+        logWarning(IP_LOCATOR, "Error " << ec.message() << " when execution the DNS request");
+        return std::make_pair(ipv4_results, ipv6_results);
+    }
+
+    asio::ip::tcp::resolver::iterator end_it;
+    for (; it != end_it; ++it)
+    {
+        logInfo(IP_LOCATOR, "IP " << it->endpoint().address() << " found by DNS request to address " << address_name);
+
+        // Check whether the ip get is v4 or v6
+        if (it->endpoint().address().is_v4())
+        {
+            ipv4_results.insert(it->endpoint().address().to_string());
+        }
+        else
+        {
+            ipv6_results.insert(it->endpoint().address().to_string());
+        }
+    }
+
+    return std::make_pair(ipv4_results, ipv6_results);
+}
+
+bool IPLocator::isIPv4(
+        const std::string& address)
+{
+    return std::regex_match(address, IPv4_REGEX);
+}
+
+bool IPLocator::isIPv6(
+        const std::string& address)
+{
+    return IPLocator::IPv6isCorrect(address);
 }
 
 } // namespace rtps

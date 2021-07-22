@@ -59,7 +59,7 @@ if(NOT ((MSVC OR MSVC_IDE) AND EPROSIMA_INSTALLER))
             $<$<BOOL:${INTERNAL_DEBUG}>:__INTERNALDEBUG> # Internal debug activated.
             )
         target_include_directories(StringMatchingTests PRIVATE
-            ${PROJECT_SOURCE_DIR}/include ${PROJECT_BINARY_DIR}/include)
+            ${PROJECT_SOURCE_DIR}/include ${PROJECT_BINARY_DIR}/include ${Asio_INCLUDE_DIR})
         target_link_libraries(StringMatchingTests GTest::gtest ${MOCKS})
         if(MSVC OR MSVC_IDE)
             target_link_libraries(StringMatchingTests ${PRIVACY} iphlpapi Shlwapi

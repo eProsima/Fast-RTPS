@@ -123,6 +123,7 @@ if(NOT ((MSVC OR MSVC_IDE) AND EPROSIMA_INSTALLER))
             $<$<BOOL:${INTERNAL_DEBUG}>:__INTERNALDEBUG> # Internal debug activated.
             )
         target_include_directories(XMLProfileParserTests PRIVATE
+            ${Asio_INCLUDE_DIR}
             ${PROJECT_SOURCE_DIR}/test/mock/rtps/Log
             ${PROJECT_SOURCE_DIR}/test/mock/rtps/TCPTransportDescriptor
             ${PROJECT_SOURCE_DIR}/test/mock/rtps/TCPv4TransportDescriptor
@@ -216,6 +217,7 @@ if(NOT ((MSVC OR MSVC_IDE) AND EPROSIMA_INSTALLER))
             ${PROJECT_SOURCE_DIR}/test/mock/rtps/SharedMemTransportDescriptor
             ${PROJECT_SOURCE_DIR}/include
             ${PROJECT_BINARY_DIR}/include
+            ${Asio_INCLUDE_DIR}
             )
 
         target_link_libraries(XMLParserTests GTest::gtest
@@ -319,6 +321,7 @@ if(NOT ((MSVC OR MSVC_IDE) AND EPROSIMA_INSTALLER))
             ${PROJECT_SOURCE_DIR}/test/mock/rtps/WriterProxyData
             ${PROJECT_SOURCE_DIR}/include
             ${PROJECT_BINARY_DIR}/include
+            ${Asio_INCLUDE_DIR}
             )
 
         target_link_libraries(XMLEndpointParserTests GTest::gtest
