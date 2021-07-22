@@ -14,9 +14,10 @@
 
 #include "BlackboxTests.hpp"
 
-#include "PubSubWriterReader.hpp"
+#include "PubSubParticipant.hpp"
 #include "PubSubReader.hpp"
 #include "PubSubWriter.hpp"
+#include "PubSubWriterReader.hpp"
 
 #include <gtest/gtest.h>
 
@@ -1094,6 +1095,40 @@ TEST_P(Discovery, EndpointCreationMultithreaded)
     // Stop endpoint creation thread
     stop = true;
     endpoint_thr.join();
+}
+
+//! Regression test for bug 10842: Segfault RTPSDomainImpl::find_local_reader #1819
+TEST_P(Discovery, ReaderCreationDestructionWithData)
+{
+    constexpr uint32_t num_iterations = 1000;
+
+    PubSubParticipant<HelloWorldType> writer(1, 0, 0, 0);
+
+    // Using a low initial heartbeat delay will make the segfault more probable
+    writer.initial_heartbeat_delay(0, 1);
+    writer.durability(eprosima::fastrtps::TRANSIENT_LOCAL_DURABILITY_QOS);
+    writer.reliability(eprosima::fastrtps::RELIABLE_RELIABILITY_QOS).init_participant();
+    writer.pub_topic_name(TEST_TOPIC_NAME).init_publisher(0);
+
+    // Start thread creating readers
+    std::thread reader_creator([num_iterations]()
+            {
+                PubSubParticipant<HelloWorldType> readers(0, num_iterations, 0, num_iterations);
+                readers.reliability(eprosima::fastrtps::RELIABLE_RELIABILITY_QOS);
+                readers.durability(eprosima::fastrtps::TRANSIENT_LOCAL_DURABILITY_QOS);
+                readers.sub_topic_name(TEST_TOPIC_NAME);
+                readers.init_participant();
+
+                for (uint32_t i = 0; i < num_iterations; ++i)
+                {
+                    EXPECT_TRUE(readers.init_subscriber(i));
+                }
+                readers.sub_wait_discovery();
+            });
+
+    writer.pub_wait_discovery(num_iterations);
+
+    reader_creator.join();
 }
 
 #ifdef INSTANTIATE_TEST_SUITE_P

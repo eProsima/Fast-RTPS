@@ -546,6 +546,23 @@ public:
         return *this;
     }
 
+    PubSubParticipant& initial_heartbeat_delay(
+            int32_t sec,
+            uint32_t nanosec)
+    {
+        datawriter_qos_.reliable_writer_qos().times.initialHeartbeatDelay.seconds = sec;
+        datawriter_qos_.reliable_writer_qos().times.initialHeartbeatDelay.nanosec = nanosec;
+        return *this;
+    }
+
+    PubSubParticipant& durability(
+            const eprosima::fastdds::dds::DurabilityQosPolicyKind kind)
+    {
+        datawriter_qos_.durability().kind = kind;
+        datareader_qos_.durability().kind = kind;
+        return *this;
+    }
+
     PubSubParticipant& reliability(
             const eprosima::fastdds::dds::ReliabilityQosPolicyKind kind)
     {
