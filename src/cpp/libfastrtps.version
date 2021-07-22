@@ -1,0 +1,4 @@
+CODEABI_1.0 {
+	global: *eprosima*;*MD5*;*dds*;
+	local: *;
+};

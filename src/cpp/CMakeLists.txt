@@ -14,6 +14,7 @@
 
 include(${PROJECT_SOURCE_DIR}/cmake/dev/set_sources.cmake)
 include(${PROJECT_SOURCE_DIR}/cmake/dev/generate_msvc_libraries.cmake)
+include(CheckCXXSourceCompiles)
 
 # Set source files
 
@@ -407,7 +408,7 @@ elseif(NOT EPROSIMA_INSTALLER)
         # C4715: 'Test': not all control paths return a value
         # C5038 data member 'member1' will be initialized after data member 'member2'
         target_compile_options(${PROJECT_NAME} PUBLIC /w34101 /w34555 /w34189 /w35038 /w34715)
-    endif(MSVC)
+    endif()
 
     target_compile_definitions(${PROJECT_NAME} PRIVATE
         ${PROJECT_NAME_UPPER}_SOURCE
@@ -539,6 +540,17 @@ elseif(NOT EPROSIMA_INSTALLER)
             if(NOT TARGET_TYPE STREQUAL "SHARED_LIBRARY")
                 set(MSVCARCH_DIR_EXTENSION_EXT "${MSVCARCH_DIR_EXTENSION_EXT}_static")
             endif()
+        endif()
+    elseif(BUILD_SHARED_LIBS)
+        set(VERSION_SCRIPT_SUPPORT_FLAGS -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libfastrtps.version)
+        set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
+        set(CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS} ${VERSION_SCRIPT_SUPPORT_FLAGS})
+        CHECK_CXX_SOURCE_COMPILES("int main(int, char**){return 0;}" HAS_VERSION_SCRIPT_SUPPORT)
+        set(CMAKE_REQUIRED_FLAGS ${OLD_CMAKE_REQUIRED_FLAGS})
+        unset(OLD_CMAKE_REQUIRED_FLAGS)
+        if(HAS_VERSION_SCRIPT_SUPPORT)
+            message(STATUS "Using linker version script to select exported symbols")
+            target_link_options(${PROJECT_NAME} ${PRIVACY} ${VERSION_SCRIPT_SUPPORT_FLAGS})
         endif()
     endif()
 endif()
