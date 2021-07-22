@@ -129,7 +129,7 @@ if (NOT (CMAKE_VERSION VERSION_LESS "3.14"))
     else()
         # Use ln to create the symbolic link. We remove the version from the file name but keep the debug suffix
         install(
-            CODE "execute_process(COMMAND bash -c \"if [[ -h ${PROJECT_NAME} ]]; then rm ${PROJECT_NAME}; fi;  ln -s $<TARGET_FILE_NAME:${PROJECT_NAME}> ${PROJECT_NAME}\" WORKING_DIRECTORY \"${CMAKE_INSTALL_PREFIX}/${BIN_INSTALL_DIR}${MSVCARCH_DIR_EXTENSION}\")"
+            CODE "execute_process(COMMAND bash -c \"if [[ -h ${PROJECT_NAME} ]]; then rm ${PROJECT_NAME}; fi;  ln -s $<TARGET_FILE_NAME:${PROJECT_NAME}> ${PROJECT_NAME}\" WORKING_DIRECTORY \"\$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/${BIN_INSTALL_DIR}${MSVCARCH_DIR_EXTENSION}\")"
             COMPONENT discovery)
     endif()
 
@@ -157,7 +157,7 @@ else() # fallback to all strategies
             else()
                 # Use ln to create the symbolic link. We remove the version from the file name but keep the debug suffix
                 install(
-                    CODE "if(NOT BUILD_TYPE OR BUILD_TYPE MATCHES \"${CONFIG}\") \n execute_process(COMMAND bash -c \"if [[ -h ${LINK_NAME} ]]; then rm ${LINK_NAME}; fi ; ln -s ${BINARY_NAME} ${LINK_NAME}\" WORKING_DIRECTORY \"${CMAKE_INSTALL_PREFIX}/${BIN_INSTALL_DIR}${MSVCARCH_DIR_EXTENSION}\") \n endif()"
+                    CODE "if(NOT BUILD_TYPE OR BUILD_TYPE MATCHES \"${CONFIG}\") \n execute_process(COMMAND bash -c \"if [[ -h ${LINK_NAME} ]]; then rm ${LINK_NAME}; fi ; ln -s ${BINARY_NAME} ${LINK_NAME}\" WORKING_DIRECTORY \"\$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/${BIN_INSTALL_DIR}${MSVCARCH_DIR_EXTENSION}\") \n endif()"
                     COMPONENT discovery
                     )
             endif()
