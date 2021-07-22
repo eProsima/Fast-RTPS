@@ -376,7 +376,7 @@ ReturnCode_t DomainParticipantImpl::delete_publisher(
         {
             return ReturnCode_t::RETCODE_PRECONDITION_NOT_MET;
         }
-        pit->second->set_listener(nullptr);
+        pit->second->disable();
         publishers_by_handle_.erase(publishers_by_handle_.find(pit->second->get_instance_handle()));
         delete pit->second;
         publishers_.erase(pit);
@@ -404,7 +404,7 @@ ReturnCode_t DomainParticipantImpl::delete_subscriber(
         {
             return ReturnCode_t::RETCODE_PRECONDITION_NOT_MET;
         }
-        sit->second->set_listener(nullptr);
+        sit->second->disable();
         subscribers_by_handle_.erase(subscribers_by_handle_.find(sit->second->get_instance_handle()));
         delete sit->second;
         subscribers_.erase(sit);

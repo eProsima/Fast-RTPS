@@ -335,7 +335,7 @@ ReturnCode_t PublisherImpl::delete_datawriter(
             {
                 return ret_code;
             }
-            writer_impl->set_listener(nullptr);
+            writer_impl->disable();
             vit->second.erase(dw_it);
             if (vit->second.empty())
             {
