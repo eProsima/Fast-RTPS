@@ -20,6 +20,8 @@
 #include <gtest/gtest.h>
 #include <fastrtps/types/DynamicTypeBuilderFactory.h>
 #include <fastrtps/types/TypeDescriptor.h>
+#include <fastrtps/types/DynamicData.h>
+#include <fastrtps/types/DynamicDataFactory.h>
 
 using namespace eprosima::fastrtps;
 using namespace eprosima::fastrtps::types;
@@ -782,6 +784,60 @@ TEST_F(XTypesTests, TypeDescriptorFullyQualifiedName)
     ASSERT_FALSE(my_descriptor->is_consistent());
     my_builder->set_name("my_interface::action*::dds_::Position");
     ASSERT_FALSE(my_descriptor->is_consistent());
+}
+
+TEST_F(XTypesTests, SetComplexValueOfNonContainerType)
+{
+    DynamicTypeBuilder_ptr pos_builder(DynamicTypeBuilderFactory::get_instance()->create_struct_builder());
+    pos_builder->add_member(0, "x", DynamicTypeBuilderFactory::get_instance()->create_float32_type());
+    pos_builder->add_member(1, "y", DynamicTypeBuilderFactory::get_instance()->create_float32_type());
+    pos_builder->add_member(2, "z", DynamicTypeBuilderFactory::get_instance()->create_float32_type());
+    DynamicTypeBuilder_ptr robot_builder(DynamicTypeBuilderFactory::get_instance()->create_struct_builder());
+    robot_builder->add_member(0, "name", DynamicTypeBuilderFactory::get_instance()->create_string_type());
+    robot_builder->add_member(1, "position", pos_builder.get());
+    robot_builder->set_name("Robot");
+    DynamicTypeBuilder_ptr positions_builder(
+        DynamicTypeBuilderFactory::get_instance()->create_array_builder(pos_builder.get(), {2}));
+
+    DynamicType_ptr pos_dyn_type = pos_builder->build();
+    DynamicData* pos_data1 = DynamicDataFactory::get_instance()->create_data(pos_dyn_type);
+    pos_data1->set_float32_value(1.1F, 0);
+    pos_data1->set_float32_value(1.2F, 1);
+    pos_data1->set_float32_value(1.3F, 2);
+    DynamicData* pos_data2 = DynamicDataFactory::get_instance()->create_data(pos_dyn_type);
+    pos_data2->set_float32_value(2.1F, 0);
+    pos_data2->set_float32_value(2.2F, 1);
+    pos_data2->set_float32_value(2.3F, 2);
+
+    // Set complex value of non-container (struct) type
+    DynamicType_ptr robot_dyn_type = robot_builder->build();
+    DynamicData* robot_data = DynamicDataFactory::get_instance()->create_data(robot_dyn_type);
+    robot_data->set_string_value("my_robot", 0);
+    ReturnCode_t ret = robot_data->set_complex_value(pos_data1, 1);
+    ASSERT_TRUE(ret == ReturnCode_t::RETCODE_OK);
+    DynamicData* data1 = nullptr;
+    robot_data->get_complex_value(&data1, 1);
+    float robot_pos_y = 0;
+    data1->get_float32_value(robot_pos_y, 1);
+    EXPECT_NEAR(1.2, robot_pos_y, 0.1);
+
+    // Set complex value of container (array) type
+    DynamicType_ptr positions_dyn_type = positions_builder->build();
+    DynamicData* positions_data = DynamicDataFactory::get_instance()->create_data(positions_dyn_type);
+    ret = positions_data->set_complex_value(pos_data1, 0);
+    ASSERT_TRUE(ret == ReturnCode_t::RETCODE_OK);
+    ret = positions_data->set_complex_value(pos_data2, 1);
+    ASSERT_TRUE(ret == ReturnCode_t::RETCODE_OK);
+    DynamicData* data2 = nullptr;
+    positions_data->get_complex_value(&data2, 1);
+    float position2_y = 0;
+    data2->get_float32_value(position2_y, 1);
+    EXPECT_NEAR(2.2, position2_y, 0.1);
+
+    DynamicDataFactory::get_instance()->delete_data(pos_data1);
+    DynamicDataFactory::get_instance()->delete_data(pos_data2);
+    DynamicDataFactory::get_instance()->delete_data(data1);
+    DynamicDataFactory::get_instance()->delete_data(data2);
 }
 
 int main(

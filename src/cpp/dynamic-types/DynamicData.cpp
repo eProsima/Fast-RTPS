@@ -5208,7 +5208,12 @@ ReturnCode_t DynamicData::set_complex_value(
     {
         // With containers, check that the index is valid
         if ((get_kind() == TK_SEQUENCE || get_kind() == TK_ARRAY || get_kind() == TK_MAP) &&
-                id < type_->get_total_bounds())
+                id >= type_->get_total_bounds())
+        {
+            logError(DYN_TYPES, "Error setting complex value. id out of bounds.");
+            return ReturnCode_t::RETCODE_BAD_PARAMETER;
+        }
+        else
         {
 #ifdef DYNAMIC_TYPES_CHECKING
             auto it = complex_values_.find(id);
@@ -5216,7 +5221,7 @@ ReturnCode_t DynamicData::set_complex_value(
             {
                 if (get_kind() == TK_MAP && it->second->key_element_)
                 {
-                    logError(DYN_TYPES, "Error setting complex Value. They given id is a Key value.");
+                    logError(DYN_TYPES, "Error setting complex value. The given id is a Key value.");
                     return ReturnCode_t::RETCODE_BAD_PARAMETER;
                 }
                 else
@@ -5246,7 +5251,7 @@ ReturnCode_t DynamicData::set_complex_value(
             {
                 if (get_kind() == TK_MAP && ((DynamicData*)it->second)->key_element_)
                 {
-                    logError(DYN_TYPES, "Error setting complex Value. They given id is a Key value.");
+                    logError(DYN_TYPES, "Error setting complex value. The given id is a Key value.");
                     return ReturnCode_t::RETCODE_BAD_PARAMETER;
                 }
                 else
@@ -5270,16 +5275,11 @@ ReturnCode_t DynamicData::set_complex_value(
             }
 #endif // ifdef DYNAMIC_TYPES_CHECKING
         }
-        else
-        {
-            logError(DYN_TYPES, "Error setting complex Value. id out of bounds.");
-            return ReturnCode_t::RETCODE_BAD_PARAMETER;
-        }
         return ReturnCode_t::RETCODE_OK;
     }
     else
     {
-        logError(DYN_TYPES, "Error settings complex value. The kind " << get_kind() << "doesn't support it");
+        logError(DYN_TYPES, "Error setting complex value. The kind " << get_kind() << "doesn't support it");
         return ReturnCode_t::RETCODE_BAD_PARAMETER;
     }
 }
