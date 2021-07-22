@@ -214,9 +214,35 @@ bool EDPStatic::removeLocalWriter(
 void EDPStatic::assignRemoteEndpoints(
         const ParticipantProxyData& pdata)
 {
+    GUID_t persistence_guid;
+
+    // Fill persistence GUID if present in UserData.
+    bool is_persistent_guid = (18 <= pdata.m_userData.size()) &&
+            ('V' == pdata.m_userData.at(0)) && ('G' == pdata.m_userData.at(1)) && ('W' == pdata.m_userData.at(2));
+    if (is_persistent_guid)
+    {
+        persistence_guid.guidPrefix.value[0] = pdata.m_userData.at(3);
+        persistence_guid.guidPrefix.value[1] = pdata.m_userData.at(4);
+        persistence_guid.guidPrefix.value[2] = pdata.m_userData.at(5);
+        persistence_guid.guidPrefix.value[3] = pdata.m_userData.at(6);
+        persistence_guid.guidPrefix.value[4] = pdata.m_userData.at(7);
+        persistence_guid.guidPrefix.value[5] = pdata.m_userData.at(8);
+        persistence_guid.guidPrefix.value[6] = pdata.m_userData.at(9);
+        persistence_guid.guidPrefix.value[7] = pdata.m_userData.at(10);
+        persistence_guid.guidPrefix.value[8] = pdata.m_userData.at(11);
+        persistence_guid.guidPrefix.value[9] = pdata.m_userData.at(12);
+        persistence_guid.guidPrefix.value[10] = pdata.m_userData.at(13);
+        persistence_guid.guidPrefix.value[11] = pdata.m_userData.at(14);
+        persistence_guid.entityId.value[0] = pdata.m_userData.at(15);
+        persistence_guid.entityId.value[1] = pdata.m_userData.at(16);
+        persistence_guid.entityId.value[2] = pdata.m_userData.at(17);
+    }
+
     for (ParameterPropertyList_t::const_iterator pit = pdata.m_properties.begin();
             pit != pdata.m_properties.end(); ++pit)
     {
+        persistence_guid.entityId.value[3] = 0;
+
         //cout << "STATIC EDP READING PROPERTY " << pit->first << "// " << pit->second << endl;
         EDPStaticProperty staticproperty;
         if (staticproperty.fromProperty((*pit).pair()))
@@ -235,8 +261,12 @@ void EDPStatic::assignRemoteEndpoints(
                 GUID_t guid(pdata.m_guid.guidPrefix, staticproperty.m_entityId);
                 if (!this->mp_PDP->has_writer_proxy_data(guid))//IF NOT FOUND, we CREATE AND PAIR IT
                 {
+                    if (is_persistent_guid)
+                    {
+                        persistence_guid.entityId.value[3] = static_cast<uint8_t>(staticproperty.m_userId);
+                    }
                     newRemoteWriter(pdata.m_guid, pdata.m_participantName,
-                            staticproperty.m_userId, staticproperty.m_entityId);
+                            staticproperty.m_userId, staticproperty.m_entityId, persistence_guid);
                 }
             }
             else if (staticproperty.m_endpointType == "Reader" && staticproperty.m_status == "ENDED")
@@ -318,7 +348,8 @@ bool EDPStatic::newRemoteWriter(
         const GUID_t& participant_guid,
         const string_255& participant_name,
         uint16_t user_id,
-        EntityId_t ent_id)
+        EntityId_t ent_id,
+        const GUID_t& persistence_guid)
 {
     WriterProxyData* wpd = NULL;
     if (mp_edpXML->lookforWriter(participant_name, user_id, &wpd) == xmlparser::XMLP_ret::XML_OK)
@@ -326,7 +357,7 @@ bool EDPStatic::newRemoteWriter(
         logInfo(RTPS_EDP, "Activating: " << wpd->guid().entityId << " in topic " << wpd->topicName());
         GUID_t writer_guid(participant_guid.guidPrefix, ent_id != c_EntityId_Unknown ? ent_id : wpd->guid().entityId);
 
-        auto init_fun = [this, participant_guid, writer_guid, wpd](
+        auto init_fun = [this, participant_guid, writer_guid, wpd, persistence_guid](
             WriterProxyData* newWPD,
             bool updating,
             const ParticipantProxyData& participant_data)
@@ -350,6 +381,7 @@ bool EDPStatic::newRemoteWriter(
                         const NetworkFactory& network = mp_RTPSParticipant->network_factory();
                         newWPD->set_remote_locators(participant_data.default_locators, network, true);
                     }
+                    newWPD->persistence_guid(persistence_guid);
 
                     return true;
                 };
