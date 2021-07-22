@@ -142,8 +142,6 @@ RTPSParticipant* RTPSDomain::createParticipant(
     }
 
     PParam.participantID = ID;
-    LocatorList_t loc;
-    IPFinder::getIP4Address(&loc);
 
     // Generate a new GuidPrefix_t
     GuidPrefix_t guidP;
