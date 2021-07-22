@@ -375,7 +375,10 @@ bool Domain::registerDynamicType(
             // Complete, just to make sure it is generated
             const TypeIdentifier* type_id_complete = typeFactory->get_type_identifier(type->getName(), true);
             const TypeObject* type_obj_complete = typeFactory->get_type_object(type->getName(), true);
-            typeFactory->add_type_object(type->getName(), type_id_complete, type_obj_complete); // Add complete
+            if (type_id_complete && type_obj_complete)
+            {
+                typeFactory->add_type_object(type->getName(), type_id_complete, type_obj_complete); // Add complete
+            }
         }
     }
     return registerType(part, type);
